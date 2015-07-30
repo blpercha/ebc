@@ -1,5 +1,6 @@
 from collections import defaultdict
 from operator import itemgetter
+from random import shuffle
 
 
 class SparseMatrix:
@@ -8,7 +9,6 @@ class SparseMatrix:
         self.nonzero_elements = {}
         self.N = N
         self.feature_ids = defaultdict(lambda: defaultdict(int))
-        self.sum_values = 0.0
 
     def read_data(self, data):
         if not isinstance(data, list):  # we expect a list of data points
@@ -23,7 +23,6 @@ class SparseMatrix:
             value = float(d[len(d) - 1])
             if value != 0.0:
                 self.nonzero_elements[tuple(location)] = value
-                self.sum_values += value
 
     def get(self, coordinates):
         if coordinates in self.nonzero_elements:
@@ -40,8 +39,24 @@ class SparseMatrix:
             self.nonzero_elements[coordinates] = added_value
 
     def normalize(self):
+        sum_values = 0.0
         for d in self.nonzero_elements:
-            self.nonzero_elements[d] /= self.sum_values
+            sum_values += self.nonzero_elements[d]
+        for d in self.nonzero_elements:
+            self.nonzero_elements[d] /= sum_values
+
+    def shuffle(self):
+        self_shuffled = SparseMatrix(self.N)
+        indices = []
+        for i in range(self.dim):
+            indices.append([e[i] for e in self.nonzero_elements])
+        for i in range(self.dim):
+            shuffle(indices[i])
+        values = [self.nonzero_elements[e] for e in self.nonzero_elements]
+        shuffle(values)
+        for j in range(len(self.nonzero_elements)):
+            self_shuffled.set(tuple([indices[i][j] for i in range(self.dim)]), values[j])
+        return self_shuffled
 
     def to_string(self):
         value_list = sorted(self.nonzero_elements.items(), key=itemgetter(0), reverse=False)

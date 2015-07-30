@@ -199,7 +199,7 @@ class EBC:
             if c not in clusters_represented:
                 index_to_change = random.randint(0, len(cXYi) - 1)
                 cXYi[index_to_change] = c
-                self.ensure_correct_number_clusters(cXYi, expected_K)
+        self.ensure_correct_number_clusters(cXYi, expected_K)
 
     def calculate_objective(self):
         objective = 0.0
