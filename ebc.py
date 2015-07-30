@@ -1,6 +1,9 @@
+from collections import defaultdict
 from math import log
+import random
 
 from numpy import zeros
+from numpy.random.mtrand import random_sample
 
 from matrix import SparseMatrix
 
@@ -24,7 +27,7 @@ class EBC:
     def run(self, assigned_C=None):
         # Step 1: initialization steps
         self.pX = self.calculate_marginals(self.pXY)
-        self.cXY = self.initialize_cluster_centers(self.pXY, assigned_C)
+        self.cXY = self.initialize_cluster_centers(self.pXY, self.K, assigned_C)
 
         # Step 2: calculate cluster joint and marginal distributions
         self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
@@ -39,6 +42,7 @@ class EBC:
                 self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
                 self.qXhat = self.calculate_marginals(self.qXhatYhat)
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
+                self.ensure_correct_number_clusters(self.cXY[dim], self.K[dim])  # check to ensure correct K
             if self.cXY == last_cXY:
                 break
             else:
@@ -81,6 +85,7 @@ class EBC:
     """
     :param pXY: sparse [multidimensional] matrix over which marginals are calculated
     """
+
     def calculate_marginals(self, pXY):
         if not isinstance(pXY, SparseMatrix):
             raise Exception("Illegal argument to marginal calculation: " + str(pXY))
@@ -93,8 +98,9 @@ class EBC:
     """
     :param cXY: current cluster assignments
     :param K: numbers of clusters along each axis
-    :param pXY: data matrix
+    :param pXY: original data matrix
     """
+
     def calculate_joint_cluster_distribution(self, cXY, K, pXY):
         if not isinstance(pXY, SparseMatrix):
             raise Exception("Matrix argument to calculate_joint_cluster_distribution not sparse.")
@@ -112,19 +118,75 @@ class EBC:
     :param pX: marginal distributions over original data matrix
     :param qXhat: marginal distributions over cluster joint distribution
     """
+
     def calculate_conditionals(self, cXY, N, pX, qXhat):
         conditional_distributions = [[0] * Ni for Ni in N]
         for i in range(len(cXY)):
             cluster_assignments_this_dimension = cXY[i]
             for j in range(len(cluster_assignments_this_dimension)):
                 cluster = cluster_assignments_this_dimension[j]
-                conditional_distributions[i][j] = pX[i][j] / qXhat[i][cluster]
+                if pX[i][j] == 0 and qXhat[i][cluster] == 0:
+                    conditional_distributions[i][j] = 0
+                else:
+                    conditional_distributions[i][j] = pX[i][j] / qXhat[i][cluster]
         return conditional_distributions
 
-    def initialize_cluster_centers(self, sparse_M, assigned_C=None):
+    """
+    :param pXY: original data matrix
+    :param K: numbers of clusters desired in each dimension
+    :param assigned_C: (optional) fixed initial assignments of clusters
+    """
+
+    def initialize_cluster_centers(self, pXY, K, assigned_C=None):
         if assigned_C:
             return assigned_C
-        if not isinstance(sparse_M, SparseMatrix):
+        if not isinstance(pXY, SparseMatrix):
             raise Exception("Matrix argument to initialize_cluster_centers is not sparse.")
-        new_C = [[0] * Ni for Ni in self.pXY.N]
-        return new_C  # TODO: ensure number of clusters is correct
+        new_C = [[-1] * Ni for Ni in pXY.N]
+
+        for axis in range(len(K)):
+            # choose cluster centers
+            axis_length = pXY.N[axis]
+            center_indices = random.sample(range(axis_length), K[axis])
+            cluster_ids = {}
+            for i in range(len(center_indices)):
+                center_index = center_indices[i]
+                cluster_ids[center_index] = i
+            centers = defaultdict(lambda: defaultdict(float))  # all nonzero indices for each center
+            for coords in pXY.nonzero_elements:
+                index_on_axis = coords[axis]
+                if index_on_axis in center_indices:
+                    reduced_coords = tuple([coords[i] for i in range(len(coords)) if i != axis])
+                    centers[cluster_ids[index_on_axis]][reduced_coords] = pXY.nonzero_elements[coords]
+
+            # assign rows to clusters
+            scores = zeros(shape=(pXY.N[axis], K[axis]))
+            for coords in pXY.nonzero_elements:
+                reduced_coords = tuple([coords[i] for i in range(len(coords)) if i != axis])
+                for xhat in cluster_ids:
+                    if reduced_coords in centers[xhat]:  # overlapping point
+                        P_i = pXY.nonzero_elements[coords]
+                        Q_i = centers[xhat][reduced_coords]
+                        scores[coords[axis]][xhat] += P_i * log(P_i / Q_i)
+            scores[scores == 0] = 1.0  # didn't match anything
+
+            # add random jitter to scores to handle tie-breaking
+            scores += 1e-10 * random_sample(scores.shape)
+            new_cXYi = list(scores.argmin(1))
+
+            # ensure numbers of clusters are correct
+            self.ensure_correct_number_clusters(new_cXYi, K[axis])
+            new_C[axis] = new_cXYi
+        return new_C
+
+    def ensure_correct_number_clusters(self, cXYi, expected_K):
+        clusters_represented = set()
+        for c in cXYi:
+            clusters_represented.add(c)
+        if len(clusters_represented) == expected_K:
+            return
+        for c in range(expected_K):
+            if c not in clusters_represented:
+                index_to_change = random.randint(0, len(cXYi) - 1)
+                cXYi[index_to_change] = c
+                self.ensure_correct_number_clusters(cXYi, expected_K)

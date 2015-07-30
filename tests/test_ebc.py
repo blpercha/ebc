@@ -137,6 +137,10 @@ class TestEbc(unittest.TestCase):
             data.append([sl[0], sl[2], float(sl[4])])
         f.close()
 
-        matrix = SparseMatrix(2, [3514, 1232])
+        matrix = SparseMatrix([3514, 1232])
         ebc = EBC(matrix, [30, 125], 10)
         ebc.run()
+
+    def testRandomInitialization(self):
+        ebc = EBC(self.matrix, [3, 2], 10)
+        ebc.run(assigned_C=None)
