@@ -4,6 +4,7 @@ import random
 
 from numpy import zeros
 from numpy.random.mtrand import random_sample
+from numpy.testing import assert_approx_equal
 
 from matrix import SparseMatrix
 
@@ -12,6 +13,13 @@ class EBC:
     def __init__(self, matrix, n_clusters, max_iterations):
         if not isinstance(matrix, SparseMatrix):
             raise Exception("Matrix argument to EBC is not SparseMatrix.")
+
+        # check to ensure matrix is a probability distribution
+        sum_values = 0.0
+        for nonzero_value in matrix.nonzero_elements.values():
+            sum_values += nonzero_value
+        assert_approx_equal(sum_values, 1.0, significant=7)
+
         self.pXY = matrix  # the original sparse, multidimensional matrix
         self.cXY = [[0] * Ni for Ni in self.pXY.N]  # cluster assignments each dimension
         self.K = n_clusters  # numbers of clusters along each dimension (len(K) = D)
@@ -44,9 +52,9 @@ class EBC:
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
                 self.ensure_correct_number_clusters(self.cXY[dim], self.K[dim])  # check to ensure correct K
             if self.cXY == last_cXY:
-                return self.cXY
+                return self.cXY, self.calculate_objective()
             last_cXY = self.cXY.copy()
-        return self.cXY  # hit max iterations - just return current assignments
+        return self.cXY, self.calculate_objective()  # hit max iterations - just return current assignments
 
     """
     :param pXY: the original data matrix
@@ -170,7 +178,7 @@ class EBC:
                         P_i = pXY.nonzero_elements[coords]
                         Q_i = centers[xhat][reduced_coords]
                         scores[coords[axis]][xhat] += P_i * log(P_i / Q_i)
-            scores[scores == 0] = 1.0  # didn't match anything
+            scores[scores == 0] = 1e10  # didn't match anything
 
             # add random jitter to scores to handle tie-breaking
             scores += 1e-10 * random_sample(scores.shape)
@@ -192,3 +200,18 @@ class EBC:
                 index_to_change = random.randint(0, len(cXYi) - 1)
                 cXYi[index_to_change] = c
                 self.ensure_correct_number_clusters(cXYi, expected_K)
+
+    def calculate_objective(self):
+        objective = 0.0
+        for d in self.pXY.nonzero_elements:
+            pXY_element = self.pXY.nonzero_elements[d]
+            qXY_element = self.get_element_approximate_distribution(d)
+            objective += pXY_element * log(pXY_element / qXY_element)
+        return objective
+
+    def get_element_approximate_distribution(self, coords):
+        clusters = [self.cXY[i][coords[i]] for i in range(len(coords))]
+        element = self.qXhatYhat.get(tuple(clusters))
+        for i in range(len(coords)):
+            element *= self.qXxHat[i][coords[i]]
+        return element

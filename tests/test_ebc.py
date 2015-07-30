@@ -139,8 +139,10 @@ class TestEbc(unittest.TestCase):
 
         matrix = SparseMatrix([3514, 1232])
         matrix.read_data(data)
+        matrix.normalize()
         ebc = EBC(matrix, [30, 125], 10)
-        ebc.run()
+        cXY, objective = ebc.run()
+        print("objective: ", objective)
         self.assertEquals(len(ebc.pXY.nonzero_elements), 10007)
         self.assertEquals(len(set(ebc.cXY[0])), 30)
         self.assertEquals(len(set(ebc.cXY[1])), 125)
@@ -154,6 +156,14 @@ class TestEbc(unittest.TestCase):
                 [1, 0, 1, 1.0],
                 [1, 1, 0, 1.0],
                 [1, 1, 1, 1.0],
+                [2, 2, 2, 1.0],
+                [2, 2, 3, 1.0],
+                [2, 3, 2, 1.0],
+                [3, 2, 2, 1.0],
+                [2, 3, 3, 1.0],
+                [3, 3, 2, 1.0],
+                [3, 2, 3, 1.0],
+                [3, 3, 3, 1.0],
                 [4, 4, 4, 1.0],
                 [4, 4, 5, 1.0],
                 [4, 5, 4, 1.0],
@@ -164,6 +174,11 @@ class TestEbc(unittest.TestCase):
                 [5, 5, 5, 1.0]]
         matrix = SparseMatrix([6, 6, 6])
         matrix.read_data(data)
+        matrix.normalize()
         ebc = EBC(matrix, [3, 3, 3], 10)
-        cXY = ebc.run()
-        print(cXY)
+        assigned_C = [[0, 0, 1, 1, 2, 2], [0, 0, 1, 1, 2, 2], [0, 0, 1, 1, 2, 2]]
+        cXY, objective = ebc.run(assigned_C)
+        self.assertEquals(cXY, assigned_C)
+        self.assertAlmostEqual(objective, 0.0)
+        cXY, objective = ebc.run()  # random initialization
+        self.assertAlmostEqual(objective, 0.0)

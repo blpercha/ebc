@@ -8,6 +8,7 @@ class SparseMatrix:
         self.nonzero_elements = {}
         self.N = N
         self.feature_ids = defaultdict(lambda: defaultdict(int))
+        self.sum_values = 0.0
 
     def read_data(self, data):
         if not isinstance(data, list):  # we expect a list of data points
@@ -22,7 +23,7 @@ class SparseMatrix:
             value = float(d[len(d) - 1])
             if value != 0.0:
                 self.nonzero_elements[tuple(location)] = value
-        self.n_nonzero = len(self.nonzero_elements)
+                self.sum_values += value
 
     def get(self, coordinates):
         if coordinates in self.nonzero_elements:
@@ -37,6 +38,10 @@ class SparseMatrix:
             self.nonzero_elements[coordinates] += added_value
         else:
             self.nonzero_elements[coordinates] = added_value
+
+    def normalize(self):
+        for d in self.nonzero_elements:
+            self.nonzero_elements[d] /= self.sum_values
 
     def to_string(self):
         value_list = sorted(self.nonzero_elements.items(), key=itemgetter(0), reverse=False)

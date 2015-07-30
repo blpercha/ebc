@@ -20,7 +20,7 @@ class TestMatrix(unittest.TestCase):
         self.assertEquals(matrix.nonzero_elements[(0, 0, 1)], 2.0)
         self.assertEquals(matrix.nonzero_elements[(1, 1, 4)], 2.0)
         self.assertEquals(matrix.nonzero_elements[(1, 2, 5)], 2.0)
-        self.assertEquals(matrix.n_nonzero, 10)
+        self.assertEquals(len(matrix.nonzero_elements), 10)
         self.assertEquals(matrix.feature_ids[0], {'mice': 1, 'patient': 0})
         self.assertEquals(matrix.feature_ids[1], {'R92Q': 1, 'R91W': 2, 'Val30Met': 0, 'R90W': 3})
         self.assertEquals(matrix.feature_ids[2], {'START_ENTITY|nmod|END_ENTITY': 1,
