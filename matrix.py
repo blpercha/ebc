@@ -3,11 +3,10 @@ from operator import itemgetter
 
 
 class SparseMatrix:
-    def __init__(self, dim, N):
-        self.D = dim  # dimensionality of matrix
-        self.M = {}
+    def __init__(self, N):
+        self.dim = len(N)  # dimensionality of matrix
+        self.nonzero_elements = {}
         self.N = N
-        self.n_nonzero = 0
         self.feature_ids = defaultdict(lambda: defaultdict(int))
 
     def read_data(self, data):
@@ -22,23 +21,23 @@ class SparseMatrix:
                 location.append(self.feature_ids[i][f_i])
             value = float(d[len(d) - 1])
             if value != 0.0:
-                self.M[tuple(location)] = value
-        self.n_nonzero = len(self.M)
+                self.nonzero_elements[tuple(location)] = value
+        self.n_nonzero = len(self.nonzero_elements)
 
     def get(self, coordinates):
-        if coordinates in self.M:
-            return self.M[coordinates]
+        if coordinates in self.nonzero_elements:
+            return self.nonzero_elements[coordinates]
         return 0.0
 
     def set(self, coordinates, value):
-        self.M[coordinates] = value
+        self.nonzero_elements[coordinates] = value
 
-    def add(self, coordinates, added_value):
-        if coordinates in self.M:
-            self.M[coordinates] += added_value
+    def add_value(self, coordinates, added_value):
+        if coordinates in self.nonzero_elements:
+            self.nonzero_elements[coordinates] += added_value
         else:
-            self.M[coordinates] = added_value
+            self.nonzero_elements[coordinates] = added_value
 
     def to_string(self):
-        value_list = sorted(self.M.items(), key=itemgetter(0), reverse=False)
+        value_list = sorted(self.nonzero_elements.items(), key=itemgetter(0), reverse=False)
         return "\n".join(["\t".join([str(e) for e in v[0]]) + "\t" + str(v[1]) for v in value_list])
