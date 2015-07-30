@@ -138,9 +138,32 @@ class TestEbc(unittest.TestCase):
         f.close()
 
         matrix = SparseMatrix([3514, 1232])
+        matrix.read_data(data)
         ebc = EBC(matrix, [30, 125], 10)
         ebc.run()
+        self.assertEquals(len(ebc.pXY.nonzero_elements), 10007)
+        self.assertEquals(len(set(ebc.cXY[0])), 30)
+        self.assertEquals(len(set(ebc.cXY[1])), 125)
 
-    def testRandomInitialization(self):
-        ebc = EBC(self.matrix, [3, 2], 10)
-        ebc.run(assigned_C=None)
+    def test3DMatrix(self):
+        data = [[0, 0, 0, 1.0],
+                [0, 0, 1, 1.0],
+                [0, 1, 0, 1.0],
+                [0, 1, 1, 1.0],
+                [1, 0, 0, 1.0],
+                [1, 0, 1, 1.0],
+                [1, 1, 0, 1.0],
+                [1, 1, 1, 1.0],
+                [4, 4, 4, 1.0],
+                [4, 4, 5, 1.0],
+                [4, 5, 4, 1.0],
+                [4, 5, 5, 1.0],
+                [5, 4, 4, 1.0],
+                [5, 4, 5, 1.0],
+                [5, 5, 4, 1.0],
+                [5, 5, 5, 1.0]]
+        matrix = SparseMatrix([6, 6, 6])
+        matrix.read_data(data)
+        ebc = EBC(matrix, [3, 3, 3], 10)
+        cXY = ebc.run()
+        print(cXY)

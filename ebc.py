@@ -44,10 +44,9 @@ class EBC:
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
                 self.ensure_correct_number_clusters(self.cXY[dim], self.K[dim])  # check to ensure correct K
             if self.cXY == last_cXY:
-                break
-            else:
-                print(self.cXY)
-                last_cXY = self.cXY.copy()
+                return self.cXY
+            last_cXY = self.cXY.copy()
+        return self.cXY  # hit max iterations - just return current assignments
 
     """
     :param pXY: the original data matrix
@@ -75,7 +74,10 @@ class EBC:
                     if i == axis:
                         continue
                     Q_i *= qXxhat[i][coords[i]]
-                Q_i *= qXhatYhat.get(tuple(clust)) / qXhat[axis][xhat]
+                if qXhatYhat.get(tuple(clust)) == 0 and qXhat[axis][xhat] == 0:
+                    Q_i = 0
+                else:
+                    Q_i *= qXhatYhat.get(tuple(clust)) / qXhat[axis][xhat]
                 if Q_i == 0:  # this can definitely happen if cluster joint distribution has zero element
                     dPQ[x, xhat] = 1e10
                 else:
