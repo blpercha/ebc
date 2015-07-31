@@ -3,6 +3,7 @@ from math import log
 import random
 
 from numpy import zeros
+from copy import copy
 from numpy.random.mtrand import random_sample
 from numpy.testing import assert_approx_equal
 
@@ -43,17 +44,19 @@ class EBC:
         self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
 
         # Step 3: iterate through dimensions, recalculating distributions
-        last_cXY = self.cXY.copy()
+        last_cXY = copy(self.cXY)
         for t in range(self.max_it):
-            for dim in range(self.dim):
+            K_order = [d for d in range(self.dim)]
+            random.shuffle(K_order)  # we make this random to make cluster finding axis-agnostic
+            for dim in K_order:
                 self.cXY[dim] = self.compute_clusters(self.pXY, self.qXhatYhat, self.qXhat, self.qXxHat, self.cXY, dim)
+                self.ensure_correct_number_clusters(self.cXY[dim], self.K[dim])  # check to ensure correct K
                 self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
                 self.qXhat = self.calculate_marginals(self.qXhatYhat)
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
-                self.ensure_correct_number_clusters(self.cXY[dim], self.K[dim])  # check to ensure correct K
             if self.cXY == last_cXY:
                 return self.cXY, self.calculate_objective()
-            last_cXY = self.cXY.copy()
+            last_cXY = copy(self.cXY)
         return self.cXY, self.calculate_objective()  # hit max iterations - just return current assignments
 
     """
@@ -154,7 +157,10 @@ class EBC:
             raise Exception("Matrix argument to initialize_cluster_centers is not sparse.")
         new_C = [[-1] * Ni for Ni in pXY.N]
 
-        for axis in range(len(K)):
+        # randomize order in which axes are handled - affects cluster choices
+        K_order = [e for e in range(len(K))]
+        random.shuffle(K_order)
+        for axis in K_order:
             # choose cluster centers
             axis_length = pXY.N[axis]
             center_indices = random.sample(range(axis_length), K[axis])
@@ -206,6 +212,8 @@ class EBC:
         for d in self.pXY.nonzero_elements:
             pXY_element = self.pXY.nonzero_elements[d]
             qXY_element = self.get_element_approximate_distribution(d)
+            if qXY_element == 0:
+                print(pXY_element)
             objective += pXY_element * log(pXY_element / qXY_element)
         return objective
 
