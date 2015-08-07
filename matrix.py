@@ -55,7 +55,7 @@ class SparseMatrix:
         values = [self.nonzero_elements[e] for e in self.nonzero_elements]
         shuffle(values)
         for j in range(len(self.nonzero_elements)):
-            self_shuffled.set(tuple([indices[i][j] for i in range(self.dim)]), values[j])
+            self_shuffled.add_value(tuple([indices[i][j] for i in range(self.dim)]), values[j])
         return self_shuffled
 
     def to_string(self):

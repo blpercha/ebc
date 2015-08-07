@@ -3,6 +3,7 @@ from copy import copy
 from operator import itemgetter
 from random import randint, random
 import sys
+from math import floor
 
 from ebc import EBC
 from matrix import SparseMatrix
@@ -24,8 +25,14 @@ for dim in range(data_dimensions):
     N.append(len(set([d[dim] for d in data])))
 print(N)
 
+
 # optimize numbers of clusters for this matrix
-K_old = [randint(2, min(100, N[i])) for i in range(data_dimensions)]
+
+def roundDown(x, to_nearest):
+    return int(floor(x / float(to_nearest))) * to_nearest
+
+
+K_old = [roundDown(randint(step_size, N[i]), step_size) for i in range(data_dimensions)]
 D_0 = 1e10  # old objective difference
 
 # keep map of best value for state
