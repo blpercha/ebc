@@ -31,22 +31,31 @@ print(N)
 def roundDown(x, to_nearest):
     return int(floor(x / float(to_nearest))) * to_nearest
 
-
-K_old = [roundDown(randint(step_size, N[i]), step_size) for i in range(data_dimensions)]
+K_old = [roundDown(randint(1, int(N[i] / 2.0)), step_size) for i in range(data_dimensions)]
 D_0 = 1e10  # old objective difference
 
-# keep map of best value for state
+
+def pickNewK(k_old, max_dim, step, n, current_scores):
+    k = copy(k_old)
+    while tuple(k) in current_scores:
+        current_dim = randint(0, max_dim - 1)
+        k[current_dim] = min(k[current_dim] + step, int(n[current_dim] / 2.0)) \
+            if random() < 0.5 else max(k[current_dim] - step, 1)
+        if tuple(k) in current_scores:
+            k[current_dim] = roundDown(randint(step, int(n[current_dim] / 2.0)), step)
+    return k
+
+
 state_best = defaultdict(float)
+max_cluster_combos = 1
+for dim in N:
+    max_cluster_combos *= int(dim / 2.0)
+
 for j in range(N_iterations):
-    K = copy(K_old)
-    dim_chosen = randint(0, data_dimensions - 1)
-    if K[dim_chosen] >= N[dim_chosen] - step_size:  # at right boundary
-        K[dim_chosen] -= step_size
-    elif K[dim_chosen] <= step_size:  # at left boundary
-        K[dim_chosen] += step_size
-    else:
-        K[dim_chosen] = min(K[dim_chosen] + step_size, N[dim_chosen]) \
-            if random() < 0.5 else max(K[dim_chosen] - step_size, 2)
+    if len(state_best) == max_cluster_combos:
+        break
+
+    K = pickNewK(K_old, data_dimensions, step_size, N, state_best)
 
     output_file.write(str(j) + "\t" + ",".join([str(e) for e in K]) + "\t" +
                       ",".join([str(e) for e in K_old]) + "\t")
