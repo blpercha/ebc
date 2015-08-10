@@ -14,6 +14,7 @@ N_iterations = int(sys.argv[3])
 step_size = int(sys.argv[4])
 n_avg = int(sys.argv[5])
 output_file = open(sys.argv[6], "w")
+dim_divisor = float(sys.argv[7])
 
 raw_data = [line.split("\t") for line in open(data_file, "r")]
 data = [[d[i] for i in cols] for d in raw_data]
@@ -31,31 +32,36 @@ print(N)
 def roundDown(x, to_nearest):
     return int(floor(x / float(to_nearest))) * to_nearest
 
-K_old = [roundDown(randint(1, int(N[i] / 2.0)), step_size) for i in range(data_dimensions)]
+
+K_old = [roundDown(randint(step_size, int(N[i] / dim_divisor)), step_size)
+         for i in range(data_dimensions)]
 D_0 = 1e10  # old objective difference
 
 
-def pickNewK(k_old, max_dim, step, n, current_scores):
+def pickNewK(k_old, max_dim, step, n, states_tried, axis_divisor):
     k = copy(k_old)
-    while tuple(k) in current_scores:
+    while tuple(k) in states_tried:
         current_dim = randint(0, max_dim - 1)
-        k[current_dim] = min(k[current_dim] + step, int(n[current_dim] / 2.0)) \
-            if random() < 0.5 else max(k[current_dim] - step, 1)
-        if tuple(k) in current_scores:
-            k[current_dim] = roundDown(randint(step, int(n[current_dim] / 2.0)), step)
+        max_clusters = int(n[current_dim] / axis_divisor)
+        k[current_dim] = k[current_dim] + step if random() < 0.5 else k[current_dim] - step
+        if k[current_dim] <= 0:
+            k[current_dim] = step
+        elif k[current_dim] >= max_clusters:
+            k[current_dim] = max_clusters
     return k
 
 
 state_best = defaultdict(float)
-max_cluster_combos = 1
-for dim in N:
-    max_cluster_combos *= int(dim / 2.0)
+max_states = 1
+for N_i in N:
+    max_states *= int(1.0 * N_i / (dim_divisor * step_size))
+print "Max states: ", max_states
 
 for j in range(N_iterations):
-    if len(state_best) == max_cluster_combos:
+    if len(state_best) == max_states:
         break
 
-    K = pickNewK(K_old, data_dimensions, step_size, N, state_best)
+    K = pickNewK(K_old, data_dimensions, step_size, N, state_best, dim_divisor)
 
     output_file.write(str(j) + "\t" + ",".join([str(e) for e in K]) + "\t" +
                       ",".join([str(e) for e in K_old]) + "\t")
@@ -83,8 +89,7 @@ for j in range(N_iterations):
         D_1 += D_1_l
     D_1 /= n_avg
 
-    if D_1 < state_best[tuple(K)]:
-        state_best[tuple(K)] = D_1
+    state_best[tuple(K)] = D_1
 
     output_file.write(str(D_1) + "\t" + str(D_0) + "\t")
     output_file.flush()
