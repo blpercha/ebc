@@ -187,7 +187,7 @@ class EBC:
             scores[scores == 0] = 1e10  # didn't match anything
 
             # add random jitter to scores to handle tie-breaking
-            scores += 1e-10 * random_sample(scores.shape)
+            # scores += 1e-10 * random_sample(scores.shape)
             new_cXYi = list(scores.argmin(1))
 
             # ensure numbers of clusters are correct

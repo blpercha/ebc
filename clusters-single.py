@@ -22,11 +22,11 @@ print(N)
 
 D_1 = 0.0
 for j in range(N_trials):
-    print j
+    print "Trial ", j
 
     M = SparseMatrix(N)
     M.read_data(data)
-    Mr = M.shuffle()  # could also be M.shuffle_disperse()
+    Mr = M.shuffle_old()  # could also be M.shuffle()
 
     M.normalize()
 

@@ -73,7 +73,7 @@ for j in range(N_iterations):
     for l in range(n_avg):
         M = SparseMatrix(N)
         M.read_data(data)
-        Mr = M.shuffle()  # could also be M.shuffle_disperse()
+        Mr = M.shuffle_old()  # could also be M.shuffle()
 
         M.normalize()
 
