@@ -9,4 +9,4 @@ for i in xrange(10, 200, 10):
                   "python /home/blpercha/ebc/clusters-single.py " +
                   "/home/blpercha/ebc/resources/matrix-ebc-paper-dense.tsv " +
                   "0,2,4 " +
-                  "%d,%d " % (i, j) + "50 /home/blpercha/ebc-results.txt")
+                  "%d,%d " % (i, j) + "50 /home/blpercha/ebc-results.txt 1e-10")

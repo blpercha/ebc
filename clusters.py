@@ -77,12 +77,12 @@ for j in range(N_iterations):
 
         M.normalize()
 
-        ebc_M = EBC(M, K, 100)
+        ebc_M = EBC(M, K, 100, 0)
         cXY_M, objective_M = ebc_M.run()
 
         Mr.normalize()
 
-        ebc_Mr = EBC(Mr, K, 100)
+        ebc_Mr = EBC(Mr, K, 100, 0)
         cXY_Mr, objective_Mr = ebc_Mr.run()
 
         D_1_l = objective_M - objective_Mr

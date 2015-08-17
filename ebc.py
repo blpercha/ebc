@@ -1,9 +1,10 @@
 from collections import defaultdict
 from math import log
 import random
+from copy import copy
 
 from numpy import zeros
-from copy import copy
+from numpy.ma import divide, outer, sqrt
 from numpy.random.mtrand import random_sample
 from numpy.testing import assert_approx_equal
 
@@ -11,7 +12,7 @@ from matrix import SparseMatrix
 
 
 class EBC:
-    def __init__(self, matrix, n_clusters, max_iterations):
+    def __init__(self, matrix, n_clusters, max_iterations, jitter_max):
         if not isinstance(matrix, SparseMatrix):
             raise Exception("Matrix argument to EBC is not SparseMatrix.")
 
@@ -33,6 +34,9 @@ class EBC:
         self.qXhat = [[0] * Ki for Ki in self.K]
         self.qXxHat = [[0] * Ni for Ni in self.pXY.N]
 
+        # amount to add to cluster assignment scores to break ties
+        self.jitter_max = jitter_max
+
     def run(self, assigned_C=None):
         # Step 1: initialization steps
         self.pX = self.calculate_marginals(self.pXY)
@@ -47,7 +51,8 @@ class EBC:
         last_cXY = copy(self.cXY)
         for t in range(self.max_it):
             K_order = [d for d in range(self.dim)]
-            random.shuffle(K_order)  # we make this random to make cluster finding axis-agnostic
+            random.shuffle(K_order)
+
             for dim in K_order:
                 self.cXY[dim] = self.compute_clusters(self.pXY, self.qXhatYhat, self.qXhat, self.qXxHat, self.cXY, dim)
                 self.ensure_correct_number_clusters(self.cXY[dim], self.K[dim])  # check to ensure correct K
@@ -71,28 +76,31 @@ class EBC:
     def compute_clusters(self, pXY, qXhatYhat, qXhat, qXxhat, cXY, axis):
         if not isinstance(pXY, SparseMatrix) or not isinstance(qXhatYhat, SparseMatrix):
             raise Exception("Arguments to compute_clusters not sparse.")
-        # want argmax_xhat D(p(Y,Z|x) || q(Y,Z|xhat))
+        # want argmin_xhat D(p(Y,Z|x) || q(Y,Z|xhat))
         # D(P|Q) = \sum_i P_i log (P_i / Q_i)
         dPQ = zeros(shape=(pXY.N[axis], qXhatYhat.N[axis]))
         for coords in pXY.nonzero_elements:
-            x = coords[axis]
-            clust = [cXY[i][coords[i]] for i in range(len(coords))]
+            coordinate_this_axis = coords[axis]
+            current_cluster_assignments = [cXY[i][coords[i]] for i in range(len(coords))]
             P_i = pXY.nonzero_elements[coords]
             for xhat in range(qXhatYhat.N[axis]):
-                clust[axis] = xhat  # temporarily assign dth dimension to this xhat
+                current_cluster_assignments[axis] = xhat  # temporarily assign dth dimension to this xhat
                 Q_i = 1.0
-                for i in range(len(clust)):
+                for i in range(len(current_cluster_assignments)):
                     if i == axis:
                         continue
                     Q_i *= qXxhat[i][coords[i]]
-                if qXhatYhat.get(tuple(clust)) == 0 and qXhat[axis][xhat] == 0:
+                if qXhatYhat.get(tuple(current_cluster_assignments)) == 0 and qXhat[axis][xhat] == 0:
                     Q_i = 0
                 else:
-                    Q_i *= qXhatYhat.get(tuple(clust)) / qXhat[axis][xhat]
+                    Q_i *= qXhatYhat.get(tuple(current_cluster_assignments)) / qXhat[axis][xhat]
                 if Q_i == 0:  # this can definitely happen if cluster joint distribution has zero element
-                    dPQ[x, xhat] = 1e10
+                    dPQ[coordinate_this_axis, xhat] = 1e10
                 else:
-                    dPQ[x, xhat] += P_i * log(P_i / Q_i)
+                    dPQ[coordinate_this_axis, xhat] += P_i * log(P_i / Q_i)
+
+        # add random jitter to break ties
+        dPQ += self.jitter_max * random_sample(dPQ.shape)
         return list(dPQ.argmin(1))
 
     """
@@ -157,38 +165,50 @@ class EBC:
             raise Exception("Matrix argument to initialize_cluster_centers is not sparse.")
         new_C = [[-1] * Ni for Ni in pXY.N]
 
-        # randomize order in which axes are handled - affects cluster choices
-        K_order = [e for e in range(len(K))]
-        random.shuffle(K_order)
-        for axis in K_order:
+        for axis in range(len(K)):
             # choose cluster centers
             axis_length = pXY.N[axis]
             center_indices = random.sample(range(axis_length), K[axis])
             cluster_ids = {}
-            for i in range(len(center_indices)):
+            for i in range(len(center_indices)):  # assign identifiers to clusters
                 center_index = center_indices[i]
                 cluster_ids[center_index] = i
             centers = defaultdict(lambda: defaultdict(float))  # all nonzero indices for each center
             for coords in pXY.nonzero_elements:
                 index_on_axis = coords[axis]
-                if index_on_axis in center_indices:
+                if index_on_axis in cluster_ids:
                     reduced_coords = tuple([coords[i] for i in range(len(coords)) if i != axis])
                     centers[cluster_ids[index_on_axis]][reduced_coords] = pXY.nonzero_elements[coords]
 
             # assign rows to clusters
             scores = zeros(shape=(pXY.N[axis], K[axis]))
+            denoms_P = zeros(shape=(pXY.N[axis]))
+            denoms_Q = zeros(shape=(K[axis]))
             for coords in pXY.nonzero_elements:
+                index_on_axis = coords[axis]
+                if index_on_axis in center_indices:
+                    continue  # don't reassign cluster centers, please
                 reduced_coords = tuple([coords[i] for i in range(len(coords)) if i != axis])
-                for xhat in cluster_ids:
+                for cluster_index in cluster_ids:
+                    xhat = cluster_ids[cluster_index]  # need cluster ID, not the axis index
                     if reduced_coords in centers[xhat]:  # overlapping point
                         P_i = pXY.nonzero_elements[coords]
                         Q_i = centers[xhat][reduced_coords]
-                        scores[coords[axis]][xhat] += P_i * log(P_i / Q_i)
-            scores[scores == 0] = 1e10  # didn't match anything
+                        scores[coords[axis]][xhat] += P_i * Q_i  # now doing based on cosine similarity
+                        denoms_P[coords[axis]] += P_i * P_i  # magnitude of this slice of original matrix
+                        denoms_Q[xhat] += Q_i * Q_i  # magnitude of cluster centers
+
+            # normalize scores
+            scores = divide(scores, outer(sqrt(denoms_P), sqrt(denoms_Q)))
+            scores[scores == 0] = -1.0
 
             # add random jitter to scores to handle tie-breaking
-            # scores += 1e-10 * random_sample(scores.shape)
-            new_cXYi = list(scores.argmin(1))
+            scores += self.jitter_max * random_sample(scores.shape)
+            new_cXYi = list(scores.argmax(1))  # !!!!!!! this needs to be argmax b/c cosine similarity!!!!
+
+            # make sure to assign the cluster centers to themselves
+            for center_index in cluster_ids:
+                new_cXYi[center_index] = cluster_ids[center_index]
 
             # ensure numbers of clusters are correct
             self.ensure_correct_number_clusters(new_cXYi, K[axis])
