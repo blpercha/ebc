@@ -69,7 +69,7 @@ for j in range(N_iterations):
     print j, K, K_old,
 
     # because the data are so noisy, we average over many trials to get our estimate
-    D_1 = 0.0
+    avg_delta = 0.0
     for l in range(n_avg):
         M = SparseMatrix(N)
         M.read_data(data)
@@ -85,20 +85,20 @@ for j in range(N_iterations):
         ebc_Mr = EBC(Mr, K, 100, 0)
         cXY_Mr, objective_Mr = ebc_Mr.run()
 
-        D_1_l = objective_M - objective_Mr
-        D_1 += D_1_l
-    D_1 /= n_avg
+        delta = objective_M - objective_Mr
+        avg_delta += delta
+    avg_delta /= n_avg
 
-    state_best[tuple(K)] = D_1
+    state_best[tuple(K)] = avg_delta
 
-    output_file.write(str(D_1) + "\t" + str(D_0) + "\t")
+    output_file.write(str(avg_delta) + "\t" + str(D_0) + "\t")
     output_file.flush()
-    print D_1, D_0,
+    print avg_delta, D_0,
 
     moved = False
-    if D_1 < D_0:  # getting better
+    if avg_delta < D_0:  # getting better
         K_old = K
-        D_0 = D_1
+        D_0 = avg_delta
         moved = True
 
     output_file.write(str(moved) + "\n")
