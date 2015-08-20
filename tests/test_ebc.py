@@ -128,7 +128,7 @@ class TestEbc(unittest.TestCase):
         return out
 
     def testOldMatrix(self):
-        f = open("/Users/beth/Documents/writing-and-talks/current-papers/ebc-relations/supplements/matrix.tsv", "r")
+        f = open("/Users/beth/Documents/phd/ebc/resources/matrix-ebc-paper-dense.tsv", "r")
         data = []
         for line in f:
             sl = line.split("\t")
@@ -141,11 +141,32 @@ class TestEbc(unittest.TestCase):
         matrix.read_data(data)
         matrix.normalize()
         ebc = EBC(matrix, [30, 125], 10, 1e-10)
-        cXY, objective = ebc.run()
+        cXY, objective, it = ebc.run()
         print "objective: ", objective
+        print "iterations: ", it
         self.assertEquals(len(ebc.pXY.nonzero_elements), 10007)
         self.assertEquals(len(set(ebc.cXY[0])), 30)
         self.assertEquals(len(set(ebc.cXY[1])), 125)
+
+    def testOldMatrix3d(self):
+        f = open("/Users/beth/Documents/phd/ebc/resources/matrix-ebc-paper-dense-3d.tsv", "r")
+        data = []
+        for line in f:
+            sl = line.split("\t")
+            data.append([sl[0], sl[1], sl[2], float(sl[3])])
+        f.close()
+
+        matrix = SparseMatrix([756, 996, 1232])
+        matrix.read_data(data)
+        matrix.normalize()
+        ebc = EBC(matrix, [30, 30, 10], 100, 1e-10)
+        cXY, objective, it = ebc.run()
+        print "objective: ", objective
+        print "iterations: ", it
+        self.assertEquals(len(ebc.pXY.nonzero_elements), 10007)
+        self.assertEquals(len(set(ebc.cXY[0])), 30)
+        self.assertEquals(len(set(ebc.cXY[1])), 30)
+        self.assertEquals(len(set(ebc.cXY[2])), 10)
 
     def test3DMatrix(self):
         data = [[0, 0, 0, 1.0],
@@ -177,8 +198,12 @@ class TestEbc(unittest.TestCase):
         matrix.normalize()
         ebc = EBC(matrix, [3, 3, 3], 10, 1e-10)
         assigned_C = [[0, 0, 1, 1, 2, 2], [0, 0, 1, 1, 2, 2], [0, 0, 1, 1, 2, 2]]
-        cXY, objective = ebc.run(assigned_C)
+        cXY, objective, it = ebc.run(assigned_C)
         self.assertEquals(cXY, assigned_C)
         self.assertAlmostEqual(objective, 0.0)
-        cXY, objective = ebc.run()  # random initialization
-        self.assertAlmostEqual(objective, 0.0)
+        self.assertEquals(it, 0)
+
+        for i in range(100):
+            cXY, objective, it = ebc.run()  # random initialization
+            print cXY, objective, it
+

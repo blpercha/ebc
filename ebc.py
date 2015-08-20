@@ -60,9 +60,9 @@ class EBC:
                 self.qXhat = self.calculate_marginals(self.qXhatYhat)
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
             if self.cXY == last_cXY:
-                return self.cXY, self.calculate_objective()
+                return self.cXY, self.calculate_objective(), t
             last_cXY = copy(self.cXY)
-        return self.cXY, self.calculate_objective()  # hit max iterations - just return current assignments
+        return self.cXY, self.calculate_objective(), self.max_it  # hit max iterations - just return current assignments
 
     """
     :param pXY: the original data matrix

@@ -1,6 +1,6 @@
 from collections import defaultdict
 from operator import itemgetter
-from random import shuffle, randint
+from random import shuffle
 
 
 class SparseMatrix:
@@ -56,23 +56,6 @@ class SparseMatrix:
         shuffle(values)
         for j in range(len(self.nonzero_elements)):
             self_shuffled.add_value(tuple([indices[i][j] for i in range(self.dim)]), values[j])
-        return self_shuffled
-
-    def shuffle_old(self):
-        self_shuffled = SparseMatrix(self.N)
-        new_nonzero_elements = set()
-        for nonzero_element in self.nonzero_elements:
-            found_a_spot = False
-            while not found_a_spot:
-                random_coordinates = []
-                for i in range(self.dim):
-                    random_coordinates.append(randint(0, self.N[i] - 1))
-                random_coordinates = tuple(random_coordinates)
-                if random_coordinates in new_nonzero_elements:
-                    continue
-                new_nonzero_elements.add(random_coordinates)
-                self_shuffled.set(random_coordinates, self.nonzero_elements[nonzero_element])
-                found_a_spot = True
         return self_shuffled
 
     def to_string(self):
