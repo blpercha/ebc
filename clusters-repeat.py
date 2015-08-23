@@ -48,11 +48,11 @@ co_occurrences = defaultdict(int)
 for t in range(N_runs):
     cXY_M, objective_M, it_M = ebc_M.run()
     for e1 in entity_map.keys():
-        c1_i = tuple([cXY_M[i][j] for i in entity_column_indices for j in list(e1)])
+        c1_i = tuple([cXY_M[i][e1[i]] for i in entity_column_indices])
         for e2 in entity_map.keys():
             if e1 == e2:
                 continue
-            c2_i = tuple([cXY_M[i][j] for i in entity_column_indices for j in list(e2)])
+            c2_i = tuple([cXY_M[i][e2[i]] for i in entity_column_indices])
             if c1_i == c2_i:
                 co_occurrences[(e1, e2)] += 1
 
