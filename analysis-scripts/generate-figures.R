@@ -34,6 +34,6 @@ names(results.pgx)[9] = "Method"
 
 mylegend <- g_legend(p1)
 
-plot_full <- grid.arrange(arrangeGrob(p1 + theme(legend.position="none"),                          p2 + theme(legend.position="none"), p3 + theme(legend.position="none"), p4 + theme(legend.position="none"), nrow = 2), mylegend, nrow = 2, heights = c(10, 1))
+plot_full <- grid.arrange(arrangeGrob(p1 + theme(legend.position="none"), p2 + theme(legend.position="none"), p3 + theme(legend.position="none"), p4 + theme(legend.position="none"), nrow = 2), mylegend, nrow = 2, heights = c(10, 1))
 
 dev.off()

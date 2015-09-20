@@ -5,7 +5,7 @@ matrix2d = defaultdict(int)
 matrix3d = defaultdict(int)
 
 file_count = 0
-for root, dirs, files in os.walk("/rd02/data/blpercha/ebc-results/"):
+for root, dirs, files in os.walk("/home/blpercha/ebc-results/"):
     for f in files:
         print file_count, f
         file_count += 1

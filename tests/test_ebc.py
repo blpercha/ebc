@@ -206,4 +206,3 @@ class TestEbc(unittest.TestCase):
         for i in range(100):
             cXY, objective, it = ebc.run()  # random initialization
             print cXY, objective, it
-
