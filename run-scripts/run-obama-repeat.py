@@ -17,4 +17,4 @@ for t in range(n_simultaneous):
               "%d " % n_runs +
               "/home/blpercha/ebc-results/repeat-%d.txt " % t +
               "1e-10 " +
-              "100 0")
+              "2 0")

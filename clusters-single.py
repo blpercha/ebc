@@ -22,13 +22,10 @@ def compareRandom(num_trials, tensor_dimensions, matrix_data, cluster_dimensions
 
         M.normalize()
 
-        both_converged = True
-
         ebc_M = EBC(M, cluster_dimensions, maxit_ebc, jitter_max_ebc)
         cXY_M, objective_M, it_M = ebc_M.run()
         if it_M == maxit_ebc:
             noconverge_M += 1
-            both_converged = False
         else:
             iterations_M.append(it_M)
 
@@ -38,12 +35,10 @@ def compareRandom(num_trials, tensor_dimensions, matrix_data, cluster_dimensions
         cXY_Mr, objective_Mr, it_Mr = ebc_Mr.run()
         if it_Mr == maxit_ebc:
             noconverge_Mr += 1
-            both_converged = False
         else:
             iterations_Mr.append(it_Mr)
 
-        if both_converged:
-            deltas.append(objective_M - objective_Mr)
+        deltas.append(objective_M - objective_Mr)
     return deltas, iterations_M, iterations_Mr, noconverge_M, noconverge_Mr
 
 
