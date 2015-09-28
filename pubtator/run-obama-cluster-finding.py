@@ -5,8 +5,8 @@ matrix_file = sys.argv[1]
 output_file = sys.argv[2]
 memory = int(sys.argv[3])
 
-for i in xrange(5, 100, 10):
-    for j in xrange(105, 200, 10):
+for i in xrange(105, 200, 10):
+    for j in xrange(5, 200, 10):
         output_log_file = str(i) + "-" + str(j)
         os.system("bsub " +
                   "-o /home/blpercha/output-logs/" + output_log_file + ".out " +
