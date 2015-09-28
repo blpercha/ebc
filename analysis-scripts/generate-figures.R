@@ -37,3 +37,31 @@ mylegend <- g_legend(p1)
 plot_full <- grid.arrange(arrangeGrob(p1 + theme(legend.position="none"), p2 + theme(legend.position="none"), p3 + theme(legend.position="none"), p4 + theme(legend.position="none"), nrow = 2), mylegend, nrow = 2, heights = c(10, 1))
 
 dev.off()
+
+# FIGURE: comparing different iteration numbers
+
+results.pgx = results.final[grep("gene", results.final$datatype),]
+
+p1 <- ggplot(results.pgx, aes(x = S, y = fracg07, colour = datatype)) + geom_line(size = 0.75) + geom_point(aes(colour = datatype), size = 3) + xlab("Seed Set Size") + ylab("Fraction of Trials with AUC > 0.7") + xlim(0,100) + ylim(0,1) + theme(plot.title = element_text(hjust = 0)) + theme(plot.title = element_text(lineheight=.8, face="bold")) + theme(panel.background = element_rect(fill = "gray95")) + scale_colour_manual(values = c("gene.2d.iterations.0" = colors[1], "gene.2d.iterations.1" = colors[2], "gene.2d.iterations.2" = colors[3]), labels = c("iterations = 0", "iterations = 1", "iterations = 2"))
+
+p2 <- ggplot(results.pgx, aes(x = S, y = fracg08, colour = datatype)) + geom_line(size = 0.75) + geom_point(aes(colour = datatype), size = 3) + xlab("Seed Set Size") + ylab("Fraction of Trials with AUC > 0.8") + xlim(0,100) + ylim(0,1) + theme(plot.title = element_text(hjust = 0)) + theme(plot.title = element_text(lineheight=.8, face="bold")) + theme(panel.background = element_rect(fill = "gray95")) + scale_colour_manual(values = c("gene.2d.iterations.0" = colors[1], "gene.2d.iterations.1" = colors[2], "gene.2d.iterations.2" = colors[3]), labels = c("iterations = 0", "iterations = 1", "iterations = 2"))
+
+p3 <- ggplot(results.pgx, aes(x = S, y = fracg09, colour = datatype)) + geom_line(size = 0.75) + geom_point(aes(colour = datatype), size = 3) + xlab("Seed Set Size") + ylab("Fraction of Trials with AUC > 0.9") + xlim(0,100) + ylim(0,1) + theme(plot.title = element_text(hjust = 0)) + theme(plot.title = element_text(lineheight=.8, face="bold")) + theme(panel.background = element_rect(fill = "gray95")) + scale_colour_manual(values = c("gene.2d.iterations.0" = colors[1], "gene.2d.iterations.1" = colors[2], "gene.2d.iterations.2" = colors[3]), labels = c("iterations = 0", "iterations = 1", "iterations = 2"))
+
+mylegend <- g_legend(p1)
+
+plot_full <- grid.arrange(arrangeGrob(p1 + theme(legend.position="none"), p2 + theme(legend.position="none"), p3 + theme(legend.position="none"), mylegend, nrow = 2))
+
+
+results.target = results.final[grep("target", results.final$datatype),]
+
+p1 <- ggplot(results.target, aes(x = S, y = fracg07, colour = datatype)) + geom_line(size = 0.75) + geom_point(aes(colour = datatype), size = 3) + xlab("Seed Set Size") + ylab("Fraction of Trials with AUC > 0.7") + xlim(0,100) + ylim(0,1) + theme(plot.title = element_text(hjust = 0)) + theme(plot.title = element_text(lineheight=.8, face="bold")) + theme(panel.background = element_rect(fill = "gray95")) + scale_colour_manual(values = c("target.2d.iterations.0" = colors[1], "target.2d.iterations.1" = colors[2], "target.2d.iterations.2" = colors[3]), labels = c("iterations = 0", "iterations = 1", "iterations = 2"))
+
+p2 <- ggplot(results.target, aes(x = S, y = fracg08, colour = datatype)) + geom_line(size = 0.75) + geom_point(aes(colour = datatype), size = 3) + xlab("Seed Set Size") + ylab("Fraction of Trials with AUC > 0.8") + xlim(0,100) + ylim(0,1) + theme(plot.title = element_text(hjust = 0)) + theme(plot.title = element_text(lineheight=.8, face="bold")) + theme(panel.background = element_rect(fill = "gray95")) + scale_colour_manual(values = c("target.2d.iterations.0" = colors[1], "target.2d.iterations.1" = colors[2], "target.2d.iterations.2" = colors[3]), labels = c("iterations = 0", "iterations = 1", "iterations = 2"))
+
+p3 <- ggplot(results.target, aes(x = S, y = fracg09, colour = datatype)) + geom_line(size = 0.75) + geom_point(aes(colour = datatype), size = 3) + xlab("Seed Set Size") + ylab("Fraction of Trials with AUC > 0.9") + xlim(0,100) + ylim(0,1) + theme(plot.title = element_text(hjust = 0)) + theme(plot.title = element_text(lineheight=.8, face="bold")) + theme(panel.background = element_rect(fill = "gray95")) + scale_colour_manual(values = c("target.2d.iterations.0" = colors[1], "target.2d.iterations.1" = colors[2], "target.2d.iterations.2" = colors[3]), labels = c("iterations = 0", "iterations = 1", "iterations = 2"))
+
+mylegend <- g_legend(p1)
+
+plot_full <- grid.arrange(arrangeGrob(p1 + theme(legend.position="none"), p2 + theme(legend.position="none"), p3 + theme(legend.position="none"), mylegend, nrow = 2))
+

@@ -10,4 +10,4 @@ for i in xrange(5, 50, 10):
                       "python /home/blpercha/ebc/clusters-single.py " +
                       "/home/blpercha/matrix-ebc-paper-ddi-format.tsv " +
                       "0,3,4,6 " +
-                      "%d,%d,%d " % (i, j, k) + "20 /home/blpercha/ebc-results-ddis-gridsize-10.txt 1e-10 100")
+                      "%d,%d,%d " % (i, j, k) + "10 /home/blpercha/ebc-results-ddis-gridsize-10.txt 1e-10 2")

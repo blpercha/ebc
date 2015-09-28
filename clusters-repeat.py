@@ -42,29 +42,22 @@ for c in ebc_cols:
     if c in entity_cols:
         entity_column_indices.append(ebc_cols.index(c))
 
-# run EBC and get entity co-occurrences
+# run EBC and get entity cluster assignments
 ebc_M = EBC(M, K, max_iterations_ebc, jitter_max)
-co_occurrences = defaultdict(int)
+clusters = defaultdict(list)
 for t in range(N_runs):
+    print "run ", t
     cXY_M, objective_M, it_M = ebc_M.run()
     for e1 in entity_map.keys():
         c1_i = tuple([cXY_M[i][e1[i]] for i in entity_column_indices])
-        for e2 in entity_map.keys():
-            if e1 == e2:
-                continue
-            c2_i = tuple([cXY_M[i][e2[i]] for i in entity_column_indices])
-            if c1_i == c2_i:
-                co_occurrences[(e1, e2)] += 1
+        clusters[e1].append(c1_i)
 
-# print co-occurrences
+# print assignments
 writer = open(output_file, "w")
-for k in co_occurrences:
-    e1 = k[0]
-    e2 = k[1]
-    e1_name = entity_map[e1]
-    e2_name = entity_map[e2]
-    writer.write(" ".join([str(e) for e in e1]) + "\t" + " ".join([str(e) for e in e2]) + "\t" +
-                 " ".join([e for e in e1_name]) + "\t" + " ".join([e for e in e2_name]) + "\t" +
-                 str(co_occurrences[k]) + "\n")
+for k in clusters:
+    e1_name = entity_map[k]
+    writer.write(",".join([str(e) for e in k]) + "\t" +
+                 ",".join([e for e in e1_name]) + "\t" + "\t".join([",".join([str(f) for f in e])
+                                                                    for e in clusters[k]]) + "\n")
     writer.flush()
 writer.close()
