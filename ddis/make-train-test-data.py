@@ -40,8 +40,8 @@ print "Got all drug pairs"
 
 def compare(v1, v2):
     same = 0
-    for i in range(len(v1)):
-        if v1[i] == v2[i]:
+    for k in range(len(v1)):
+        if v1[k] == v2[k]:
             same += 1
     return same
 
@@ -59,7 +59,7 @@ for i in [1, 2, 3, 4, 5, 10, 25, 50, 75, 100]:
         shuffle(known_ddis_matrix)
         shuffle(non_ddis_matrix)
 
-        seed = known_ddis_matrix[:i]
+        seed = set(known_ddis_matrix[:i])
         test_positive = known_ddis_matrix[i:(i + test_set_size / 2)]
         test_negative = non_ddis_matrix[:(test_set_size / 2)]
 
@@ -67,16 +67,20 @@ for i in [1, 2, 3, 4, 5, 10, 25, 50, 75, 100]:
         scores = []
         true_labels = []
         for x in test_positive:
-            sum_seed_scores = 0.0
-            for t in seed:
-                sum_seed_scores += float(compare(clusters[x], clusters[t]))
-            scores.append(sum_seed_scores)
+            scores_this_x = []
+            for xo in clusters:
+                scores_this_x.append((compare(clusters[x], clusters[xo]), xo in seed))
+            scores_this_x.sort()
+            seed_ranks = [i for i in range(len(scores_this_x)) if scores_this_x[i][1]]
+            scores.append(sum(seed_ranks))
             true_labels.append(1)
         for x in test_negative:
-            sum_seed_scores = 0.0
-            for t in seed:
-                sum_seed_scores += float(compare(clusters[x], clusters[t]))
-            scores.append(sum_seed_scores)
+            scores_this_x = []
+            for xo in clusters:
+                scores_this_x.append((compare(clusters[x], clusters[xo]), xo in seed))
+            scores_this_x.sort()
+            seed_ranks = [i for i in range(len(scores_this_x)) if scores_this_x[i][1]]
+            scores.append(sum(seed_ranks))
             true_labels.append(0)
 
         fpr, tpr, _ = metrics.roc_curve(true_labels, scores)
