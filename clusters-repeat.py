@@ -12,6 +12,7 @@ output_file = sys.argv[5]
 jitter_max = float(sys.argv[6])
 max_iterations_ebc = int(sys.argv[7])
 entity_cols = [int(e) for e in sys.argv[8].split(",")]
+object_toler = float(sys.argv[9])
 
 # get original data
 raw_data = [line.split("\t") for line in open(data_file, "r")]
@@ -43,7 +44,7 @@ for c in ebc_cols:
         entity_column_indices.append(ebc_cols.index(c))
 
 # run EBC and get entity cluster assignments
-ebc_M = EBC(M, K, max_iterations_ebc, jitter_max)
+ebc_M = EBC(M, K, max_iterations_ebc, jitter_max, object_toler)
 clusters = defaultdict(list)
 for t in range(N_runs):
     print "run ", t

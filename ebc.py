@@ -1,7 +1,6 @@
 from collections import defaultdict
 from math import log
 import random
-from copy import copy
 
 from numpy import zeros
 from numpy.ma import divide, outer, sqrt
@@ -12,7 +11,7 @@ from matrix import SparseMatrix
 
 
 class EBC:
-    def __init__(self, matrix, n_clusters, max_iterations, jitter_max):
+    def __init__(self, matrix, n_clusters, max_iterations, jitter_max, objective_tolerance):
         if not isinstance(matrix, SparseMatrix):
             raise Exception("Matrix argument to EBC is not SparseMatrix.")
 
@@ -36,6 +35,7 @@ class EBC:
 
         # amount to add to cluster assignment scores to break ties
         self.jitter_max = jitter_max
+        self.objective_tolerance = objective_tolerance
 
     def run(self, assigned_C=None):
         # Step 1: initialization steps
@@ -48,10 +48,12 @@ class EBC:
         self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
 
         # Step 3: iterate through dimensions, recalculating distributions
-        last_cXY = copy(self.cXY)
+        last_objective = 1e10
+        objective = 1e10
         for t in range(self.max_it):
             K_order = [d for d in range(self.dim)]
-            random.shuffle(K_order)
+            K_order.reverse()  # TODO: remove this
+            #random.shuffle(K_order)
 
             for dim in K_order:
                 self.cXY[dim] = self.compute_clusters(self.pXY, self.qXhatYhat, self.qXhat, self.qXxHat, self.cXY, dim)
@@ -59,10 +61,11 @@ class EBC:
                 self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
                 self.qXhat = self.calculate_marginals(self.qXhatYhat)
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
-            if self.cXY == last_cXY:
-                return self.cXY, self.calculate_objective(), t
-            last_cXY = copy(self.cXY)
-        return self.cXY, self.calculate_objective(), self.max_it  # hit max iterations - just return current assignments
+            objective = self.calculate_objective()
+            if abs(objective - last_objective) < self.objective_tolerance:
+                return self.cXY, objective, t
+            last_objective = objective
+        return self.cXY, objective, self.max_it  # hit max iterations - just return current assignments
 
     """
     :param pXY: the original data matrix

@@ -59,7 +59,7 @@ class TestEbc(unittest.TestCase):
                            ((5, 4), 0.04), ((5, 5), 0.04)])
 
     def testApproximateDistributionOriginalITCCPaper(self):
-        ebc = EBC(self.matrix, [3, 2], 10, 1e-10)
+        ebc = EBC(self.matrix, [3, 2], 10, 1e-10, 0.01)
         ebc.run(assigned_C=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
         indices = [range(N_d) for N_d in ebc.pXY.N]
         index_list = self.cartesian(indices)
@@ -140,7 +140,7 @@ class TestEbc(unittest.TestCase):
         matrix = SparseMatrix([3514, 1232])
         matrix.read_data(data)
         matrix.normalize()
-        ebc = EBC(matrix, [30, 125], 10, 1e-10)
+        ebc = EBC(matrix, [30, 125], 10, 1e-10, 0.01)
         cXY, objective, it = ebc.run()
         print "objective: ", objective
         print "iterations: ", it
@@ -159,7 +159,7 @@ class TestEbc(unittest.TestCase):
         matrix = SparseMatrix([756, 996, 1232])
         matrix.read_data(data)
         matrix.normalize()
-        ebc = EBC(matrix, [30, 30, 10], 100, 1e-10)
+        ebc = EBC(matrix, [30, 30, 10], 100, 1e-10, 0.01)
         cXY, objective, it = ebc.run()
         print "objective: ", objective
         print "iterations: ", it
@@ -196,12 +196,12 @@ class TestEbc(unittest.TestCase):
         matrix = SparseMatrix([6, 6, 6])
         matrix.read_data(data)
         matrix.normalize()
-        ebc = EBC(matrix, [3, 3, 3], 10, 1e-10)
+        ebc = EBC(matrix, [3, 3, 3], 10, 1e-10, 0.01)
         assigned_C = [[0, 0, 1, 1, 2, 2], [0, 0, 1, 1, 2, 2], [0, 0, 1, 1, 2, 2]]
         cXY, objective, it = ebc.run(assigned_C)
         self.assertEquals(cXY, assigned_C)
         self.assertAlmostEqual(objective, 0.0)
-        self.assertEquals(it, 0)
+        self.assertEquals(it, 1)
 
         for i in range(100):
             cXY, objective, it = ebc.run()  # random initialization

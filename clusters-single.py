@@ -7,7 +7,7 @@ from matrix import SparseMatrix
 
 
 def compareRandom(num_trials, tensor_dimensions, matrix_data, cluster_dimensions,
-                  maxit_ebc, jitter_max_ebc):
+                  maxit_ebc, jitter_max_ebc, objective_tolerance):
     deltas = []
     iterations_M = []
     iterations_Mr = []
@@ -22,7 +22,7 @@ def compareRandom(num_trials, tensor_dimensions, matrix_data, cluster_dimensions
 
         M.normalize()
 
-        ebc_M = EBC(M, cluster_dimensions, maxit_ebc, jitter_max_ebc)
+        ebc_M = EBC(M, cluster_dimensions, maxit_ebc, jitter_max_ebc, objective_tolerance)
         cXY_M, objective_M, it_M = ebc_M.run()
         if it_M == maxit_ebc:
             noconverge_M += 1
@@ -31,7 +31,7 @@ def compareRandom(num_trials, tensor_dimensions, matrix_data, cluster_dimensions
 
         Mr.normalize()
 
-        ebc_Mr = EBC(Mr, cluster_dimensions, maxit_ebc, jitter_max_ebc)
+        ebc_Mr = EBC(Mr, cluster_dimensions, maxit_ebc, jitter_max_ebc, objective_tolerance)
         cXY_Mr, objective_Mr, it_Mr = ebc_Mr.run()
         if it_Mr == maxit_ebc:
             noconverge_Mr += 1
@@ -49,6 +49,7 @@ N_trials = int(sys.argv[4])
 output_file = sys.argv[5]
 jitter_max = float(sys.argv[6])
 max_iterations_ebc = int(sys.argv[7])
+object_tol = float(sys.argv[8])
 
 # get original data
 raw_data = [line.split("\t") for line in open(data_file, "r")]
@@ -64,7 +65,8 @@ print(N)
 D_1, it_orig, it_rand, noconv_orig, noconv_rand = compareRandom(num_trials=N_trials,
                                                                 tensor_dimensions=N, matrix_data=data,
                                                                 cluster_dimensions=K, maxit_ebc=max_iterations_ebc,
-                                                                jitter_max_ebc=jitter_max)
+                                                                jitter_max_ebc=jitter_max,
+                                                                objective_tolerance=object_tol)
 
 # write final result to combined file (other processes also write to this file)
 output_stream = open(output_file, "a")
