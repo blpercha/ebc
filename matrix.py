@@ -6,13 +6,20 @@ class SparseMatrix:
     """ An implementation of sparse matrix that is used by the ITCC and EBC algorithm.
     """
     def __init__(self, N):
+        """ Initialize the sparse matrix. N should be the sizes of all dimensions in a list-like data structure. """
         self.dim = len(N)  # dimensionality of matrix
         self.nonzero_elements = {}
         self.N = N
+        # feature_ids should be a map from feature name to the corresponding index. 
+        # For example, in a 2D matrix, each feature corresponds to a specific row or column.
         self.feature_ids = defaultdict(lambda: defaultdict(int))
 
     def read_data(self, data):
-        """ Read the data from a list and populate the matrix. If 'data' is not a list, simply return. """
+        """ Read the data from a list and populate the matrix. If 'data' is not a list, simply return. 
+        
+        Each element of the data list should be a list, and should have the following form:
+            [feature1, feature2, ..., feature dim, value]
+        """
         if not isinstance(data, list):  # we expect a list of data points
             return
         for d in data:
@@ -49,8 +56,7 @@ class SparseMatrix:
             self.nonzero_elements[d] /= sum_values
 
     def shuffle(self):
-        """ Randomly shuffle the nonzero elements in the original matrix, 
-        and return a new matrix with the elements shuffled.
+        """ Randomly shuffle the nonzero elements in the original matrix,  and return a new matrix with the elements shuffled.
         """
         self_shuffled = SparseMatrix(self.N)
         indices = []
