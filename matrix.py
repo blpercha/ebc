@@ -2,8 +2,9 @@ from collections import defaultdict
 from operator import itemgetter
 from random import shuffle
 
-
 class SparseMatrix:
+    """ An implementation of sparse matrix that is used by the ITCC and EBC algorithm.
+    """
     def __init__(self, N):
         self.dim = len(N)  # dimensionality of matrix
         self.nonzero_elements = {}
@@ -11,6 +12,7 @@ class SparseMatrix:
         self.feature_ids = defaultdict(lambda: defaultdict(int))
 
     def read_data(self, data):
+        """ Read the data from a list and populate the matrix. If 'data' is not a list, simply return. """
         if not isinstance(data, list):  # we expect a list of data points
             return
         for d in data:
@@ -39,6 +41,7 @@ class SparseMatrix:
             self.nonzero_elements[coordinates] = added_value
 
     def normalize(self):
+        """ Normalize the sparse matrix such that the elements in the matrix sum up to 1. """
         sum_values = 0.0
         for d in self.nonzero_elements:
             sum_values += self.nonzero_elements[d]
@@ -46,8 +49,12 @@ class SparseMatrix:
             self.nonzero_elements[d] /= sum_values
 
     def shuffle(self):
+        """ Randomly shuffle the nonzero elements in the original matrix, 
+        and return a new matrix with the elements shuffled.
+        """
         self_shuffled = SparseMatrix(self.N)
         indices = []
+        # Get all the indices of nonzero elements. indices is a list of 'dim' lists, each being a list of indices for a specific dimension
         for i in range(self.dim):
             indices.append([e[i] for e in self.nonzero_elements])
         for i in range(self.dim):
