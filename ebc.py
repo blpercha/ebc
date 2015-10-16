@@ -52,15 +52,20 @@ class EBC:
         objective = 1e10
         for t in range(self.max_it):
             K_order = [d for d in range(self.dim)]
-            K_order.reverse()  # TODO: remove this
-            #random.shuffle(K_order)
+            # K_order.reverse()  # TODO: remove this
+            # random.shuffle(K_order)
+
+            new_cXY = [[0] * Ni for Ni in self.pXY.N]  # new cluster assignments each dimension
 
             for dim in K_order:
-                self.cXY[dim] = self.compute_clusters(self.pXY, self.qXhatYhat, self.qXhat, self.qXxHat, self.cXY, dim)
-                self.ensure_correct_number_clusters(self.cXY[dim], self.K[dim])  # check to ensure correct K
-                self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
-                self.qXhat = self.calculate_marginals(self.qXhatYhat)
-                self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
+                new_cXY[dim] = self.compute_clusters(self.pXY, self.qXhatYhat, self.qXhat, self.qXxHat, self.cXY, dim)
+                self.ensure_correct_number_clusters(new_cXY[dim], self.K[dim])  # check to ensure correct K
+
+            self.cXY = new_cXY  # update the new cluster assignments
+            self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
+            self.qXhat = self.calculate_marginals(self.qXhatYhat)
+            self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
+
             objective = self.calculate_objective()
             if abs(objective - last_objective) < self.objective_tolerance:
                 return self.cXY, objective, t
