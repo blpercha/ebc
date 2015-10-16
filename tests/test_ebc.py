@@ -3,8 +3,6 @@ import unittest
 
 from numpy import asarray, prod, zeros, repeat
 
-from scipy.lib.six import xrange
-
 from ebc import EBC
 from matrix import SparseMatrix
 
@@ -128,7 +126,7 @@ class TestEbc(unittest.TestCase):
         return out
 
     def testOldMatrix(self):
-        f = open("/Users/beth/Documents/phd/ebc/resources/matrix-ebc-paper-dense.tsv", "r")
+        f = open("resources/matrix-ebc-paper-dense.tsv", "r")
         data = []
         for line in f:
             sl = line.split("\t")
@@ -149,7 +147,7 @@ class TestEbc(unittest.TestCase):
         self.assertEquals(len(set(ebc.cXY[1])), 125)
 
     def testOldMatrix3d(self):
-        f = open("/Users/beth/Documents/phd/ebc/resources/matrix-ebc-paper-dense-3d.tsv", "r")
+        f = open("resources/matrix-ebc-paper-dense-3d.tsv", "r")
         data = []
         for line in f:
             sl = line.split("\t")
