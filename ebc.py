@@ -11,25 +11,22 @@ from matrix import SparseMatrix
 
 
 class EBC:
-    def __init__(self, matrix, n_clusters, max_iterations, jitter_max, objective_tolerance):
+    def __init__(self, matrix, n_clusters, max_iterations=10, jitter_max=1e-10, objective_tolerance=0.01):
         if not isinstance(matrix, SparseMatrix):
             raise Exception("Matrix argument to EBC is not SparseMatrix.")
 
         # check to ensure matrix is a probability distribution
-        sum_values = 0.0
-        for nonzero_value in matrix.nonzero_elements.values():
-            sum_values += nonzero_value
-        assert_approx_equal(sum_values, 1.0, significant=7)
+        assert_approx_equal(matrix.get_sum(), 1.0, significant=7, err_msg='matrix elements does not sum to 1. Please normalize your matrix.')
 
-        self.pXY = matrix  # the original sparse, multidimensional matrix
-        self.cXY = [[0] * Ni for Ni in self.pXY.N]  # cluster assignments each dimension
+        self.pXY = matrix  # the joint probability distribution e.g. p(X,Y)- the original sparse, multidimensional matrix
+        self.cXY = [[0] * Ni for Ni in self.pXY.N]  # cluster assignments along each dimension e.g. C(X) and C(Y)
         self.K = n_clusters  # numbers of clusters along each dimension (len(K) = D)
         self.dim = self.pXY.dim  # overall dimension of the matrix
         self.max_it = max_iterations
 
-        self.pX = None
+        self.pX = None # marginal probabilities
 
-        self.qXhatYhat = SparseMatrix(self.K)
+        self.qXhatYhat = SparseMatrix(self.K) # the approximate probability distribution after clustering
         self.qXhat = [[0] * Ki for Ki in self.K]
         self.qXxHat = [[0] * Ni for Ni in self.pXY.N]
 
@@ -40,19 +37,21 @@ class EBC:
     def run(self, assigned_C=None):
         # Step 1: initialization steps
         self.pX = self.calculate_marginals(self.pXY)
-        self.cXY = self.initialize_cluster_centers(self.pXY, self.K, assigned_C)
+        if assigned_C:
+            self.cXY = assigned_C
+        else:
+            self.cXY = self.initialize_cluster_centers(self.pXY, self.K)
 
         # Step 2: calculate cluster joint and marginal distributions
         self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
-        self.qXhat = self.calculate_marginals(self.qXhatYhat)
+        self.qXhat = self.calculate_marginals(self.qXhatYhat) # the cluster marginals along each axis
         self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
 
         # Step 3: iterate through dimensions, recalculating distributions
-        last_objective = 1e10
-        objective = 1e10
+        last_objective = objective = 1e10
+        K_order = [d for d in range(self.dim)]
         for t in range(self.max_it):
-            K_order = [d for d in range(self.dim)]
-            K_order.reverse()  # TODO: remove this
+            # K_order.reverse()  # TODO: remove this
             #random.shuffle(K_order)
 
             for dim in K_order:
@@ -67,16 +66,20 @@ class EBC:
             last_objective = objective
         return self.cXY, objective, self.max_it  # hit max iterations - just return current assignments
 
-    """
-    :param pXY: the original data matrix
-    :param qXhatYhat: the joint distribution over the clusters
-    :param qXhat: the marginal distributions of qXhatYhat
-    :param qXxhat: for each dimension, the conditional distributions over the clusters (in a single vector)
-    :param cXY: current cluster assignments
-    :param axis: the axis (dimension) over which clusters are being computed
-    """
-
     def compute_clusters(self, pXY, qXhatYhat, qXhat, qXxhat, cXY, axis):
+        """ Compute the best cluster assignment along a single axis, given all the distributions and clusters on other axes.
+
+        Args:
+            pXY: the original data matrix
+            qXhatYhat: the joint distribution over the clusters
+            qXhat: the marginal distributions of qXhatYhat
+            qXxhat: for each dimension, the conditional distributions over the clusters (in a single vector)
+            cXY: current cluster assignments
+            axis: the axis (dimension) over which clusters are being computed
+
+        Return:
+            Best cluster assignment along a single axis as a list.
+        """
         if not isinstance(pXY, SparseMatrix) or not isinstance(qXhatYhat, SparseMatrix):
             raise Exception("Arguments to compute_clusters not sparse.")
         # want argmin_xhat D(p(Y,Z|x) || q(Y,Z|xhat))
@@ -84,7 +87,7 @@ class EBC:
         dPQ = zeros(shape=(pXY.N[axis], qXhatYhat.N[axis]))
         for coords in pXY.nonzero_elements:
             coordinate_this_axis = coords[axis]
-            current_cluster_assignments = [cXY[i][coords[i]] for i in range(len(coords))]
+            current_cluster_assignments = [cXY[i][coords[i]] for i in range(len(coords))] # cluster assignments on each axis
             P_i = pXY.nonzero_elements[coords]
             for xhat in range(qXhatYhat.N[axis]):
                 current_cluster_assignments[axis] = xhat  # temporarily assign dth dimension to this xhat
@@ -106,11 +109,14 @@ class EBC:
         dPQ += self.jitter_max * random_sample(dPQ.shape)
         return list(dPQ.argmin(1))
 
-    """
-    :param pXY: sparse [multidimensional] matrix over which marginals are calculated
-    """
-
     def calculate_marginals(self, pXY):
+        """ Calculate the marginal probabilities given a joint distribution.
+
+        Args:
+            pXY: sparse [multidimensional] matrix over which marginals are calculated.
+
+        TODO: This could be optimized by using a matrix package.
+        """
         if not isinstance(pXY, SparseMatrix):
             raise Exception("Illegal argument to marginal calculation: " + str(pXY))
         marginals = [[0] * Ni for Ni in pXY.N]
@@ -119,32 +125,43 @@ class EBC:
                 marginals[i][d[i]] += pXY.nonzero_elements[d]
         return marginals
 
-    """
-    :param cXY: current cluster assignments
-    :param K: numbers of clusters along each axis
-    :param pXY: original data matrix
-    """
-
     def calculate_joint_cluster_distribution(self, cXY, K, pXY):
+        """ Calculate the joint cluster distribution q(X',Y') using the current prob distribution and
+        cluster assignments. (Here we use X' to denote X_hat)
+
+        Args:
+            cXY: current cluster assignments for each axis
+            K: numbers of clusters along each axis
+            pXY: original probability distribution matrix
+
+        Return:
+            qXhatYhat: the joint cluster distribution
+        """
         if not isinstance(pXY, SparseMatrix):
             raise Exception("Matrix argument to calculate_joint_cluster_distribution not sparse.")
         qXhatYhat = SparseMatrix(K)  # joint distribution over clusters
         for coords in pXY.nonzero_elements:
+            # find the coordinates of the cluster for this element
             cluster_coords = []
             for i in range(len(coords)):
                 cluster_coords.append(cXY[i][coords[i]])
             qXhatYhat.add_value(tuple(cluster_coords), pXY.nonzero_elements[coords])
         return qXhatYhat
 
-    """
-    :param cXY: current cluster assignments
-    :param N: lengths of each dimension in the original data matrix
-    :param pX: marginal distributions over original data matrix
-    :param qXhat: marginal distributions over cluster joint distribution
-    """
-
     def calculate_conditionals(self, cXY, N, pX, qXhat):
-        conditional_distributions = [[0] * Ni for Ni in N]
+        """ Calculate the conditional marginal distributions given the clustering distribution, i.e. q(X|X').
+
+        Args:
+            cXY: current cluster assignments
+            N: lengths of each dimension in the original data matrix
+            pX: marginal distributions over original data matrix
+            qXhat: marginal distributions over cluster joint distribution
+
+        Return:
+            conditional_distributions: a list of distribution for each axis, 
+            with each element being a list of prob for i-th row/column in this axis.
+        """
+        conditional_distributions = [[0] * Ni for Ni in N] # TODO: why use a list of list to represent matrix here?
         for i in range(len(cXY)):
             cluster_assignments_this_dimension = cXY[i]
             for j in range(len(cluster_assignments_this_dimension)):
@@ -155,36 +172,37 @@ class EBC:
                     conditional_distributions[i][j] = pX[i][j] / qXhat[i][cluster]
         return conditional_distributions
 
-    """
-    :param pXY: original data matrix
-    :param K: numbers of clusters desired in each dimension
-    :param assigned_C: (optional) fixed initial assignments of clusters
-    """
+    def initialize_cluster_centers(self, pXY, K):
+        """ Some magic code that initializes the cluster along each axis.
 
-    def initialize_cluster_centers(self, pXY, K, assigned_C=None):
-        if assigned_C:
-            return assigned_C
+        Args:
+            pXY: original data matrix
+            K: numbers of clusters desired in each dimension
+
+        Return:
+            new_C: a list of list of cluster id that the current index in the current axis is assigned to.
+        """
         if not isinstance(pXY, SparseMatrix):
             raise Exception("Matrix argument to initialize_cluster_centers is not sparse.")
         new_C = [[-1] * Ni for Ni in pXY.N]
 
-        for axis in range(len(K)):
+        for axis in range(len(K)): # loop over each dimension
             # choose cluster centers
             axis_length = pXY.N[axis]
             center_indices = random.sample(range(axis_length), K[axis])
             cluster_ids = {}
-            for i in range(len(center_indices)):  # assign identifiers to clusters
+            for i in range(K[axis]):  # assign identifiers to clusters
                 center_index = center_indices[i]
                 cluster_ids[center_index] = i
             centers = defaultdict(lambda: defaultdict(float))  # all nonzero indices for each center
             for coords in pXY.nonzero_elements:
                 index_on_axis = coords[axis]
-                if index_on_axis in cluster_ids:
-                    reduced_coords = tuple([coords[i] for i in range(len(coords)) if i != axis])
-                    centers[cluster_ids[index_on_axis]][reduced_coords] = pXY.nonzero_elements[coords]
+                if index_on_axis in cluster_ids: # is a center
+                    reduced_coords = tuple([coords[i] for i in range(len(coords)) if i != axis]) # coords without the current axis
+                    centers[cluster_ids[index_on_axis]][reduced_coords] = pXY.nonzero_elements[coords] # (cluster_id, other coords) -> value
 
             # assign rows to clusters
-            scores = zeros(shape=(pXY.N[axis], K[axis]))
+            scores = zeros(shape=(pXY.N[axis], K[axis])) # scores: axis_size x cluster_number
             denoms_P = zeros(shape=(pXY.N[axis]))
             denoms_Q = zeros(shape=(K[axis]))
             for coords in pXY.nonzero_elements:
@@ -219,6 +237,7 @@ class EBC:
         return new_C
 
     def ensure_correct_number_clusters(self, cXYi, expected_K):
+        """ To ensure a cluster assignment actually has the expected total number of clusters. """
         clusters_represented = set()
         for c in cXYi:
             clusters_represented.add(c)
@@ -231,6 +250,7 @@ class EBC:
         self.ensure_correct_number_clusters(cXYi, expected_K)
 
     def calculate_objective(self):
+        """ Calculate the value of the objective function given the current cluster assignments. """
         objective = 0.0
         for d in self.pXY.nonzero_elements:
             pXY_element = self.pXY.nonzero_elements[d]
@@ -246,3 +266,26 @@ class EBC:
         for i in range(len(coords)):
             element *= self.qXxHat[i][coords[i]]
         return element
+
+def main():
+    """ The code for profiling EBC with cProfile. """
+    with open("resources/matrix-ebc-paper-sparse.tsv", "r") as f:
+        data = []
+        for line in f:
+            sl = line.split("\t")
+            if len(sl) < 5:  # headers
+                continue
+            data.append([sl[0], sl[2], float(sl[4])])
+
+    matrix = SparseMatrix([14052, 7272])
+    matrix.read_data(data)
+    matrix.normalize()
+    print "-> Data preprocessing finished."
+    ebc = EBC(matrix, [30, 125], 10, 1e-10, 0.01)
+    cXY, objective, it = ebc.run()
+    print "-> EBC finished."
+    print "---> objective: ", objective
+    print "---> iterations: ", it
+
+if __name__ == "__main__":
+    main()

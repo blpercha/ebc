@@ -47,11 +47,15 @@ class SparseMatrix:
         else:
             self.nonzero_elements[coordinates] = added_value
 
+    def get_sum(self):
+        sum_values = 0.0
+        for v in self.nonzero_elements.values():
+            sum_values += v
+        return sum_values
+
     def normalize(self):
         """ Normalize the sparse matrix such that the elements in the matrix sum up to 1. """
-        sum_values = 0.0
-        for d in self.nonzero_elements:
-            sum_values += self.nonzero_elements[d]
+        sum_values = self.get_sum()
         for d in self.nonzero_elements:
             self.nonzero_elements[d] /= sum_values
 

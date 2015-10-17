@@ -56,84 +56,14 @@ class TestEbc(unittest.TestCase):
                            ((4, 4), 0.04), ((4, 5), 0.04), ((5, 0), 0.04), ((5, 1), 0.04), ((5, 2), 0.04),
                            ((5, 4), 0.04), ((5, 5), 0.04)])
 
-    def testApproximateDistributionOriginalITCCPaper(self):
-        ebc = EBC(self.matrix, [3, 2], 10, 1e-10, 0.01)
-        ebc.run(assigned_C=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
-        indices = [range(N_d) for N_d in ebc.pXY.N]
-        index_list = self.cartesian(indices)
-        approx_distribution = {}
-        for location in index_list:
-            q = 1.0
-            c_location = []
-            for i in range(len(location)):
-                c_i = ebc.cXY[i][location[i]]
-                c_location.append(c_i)
-                q *= ebc.qXxHat[i][location[i]]
-            q *= ebc.qXhatYhat.get(tuple(c_location))
-            approx_distribution[tuple(location)] = q
-
-        self.assertAlmostEquals(approx_distribution[(0, 0)], 0.054)
-        self.assertAlmostEquals(approx_distribution[(0, 1)], 0.054)
-        self.assertAlmostEquals(approx_distribution[(0, 2)], 0.042)
-        self.assertAlmostEquals(approx_distribution[(0, 3)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(0, 4)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(0, 5)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(1, 0)], 0.054)
-        self.assertAlmostEquals(approx_distribution[(1, 1)], 0.054)
-        self.assertAlmostEquals(approx_distribution[(1, 2)], 0.042)
-        self.assertAlmostEquals(approx_distribution[(1, 3)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(1, 4)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(1, 5)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(2, 0)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(2, 1)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(2, 2)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(2, 3)], 0.042)
-        self.assertAlmostEquals(approx_distribution[(2, 4)], 0.054)
-        self.assertAlmostEquals(approx_distribution[(2, 5)], 0.054)
-        self.assertAlmostEquals(approx_distribution[(3, 0)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(3, 1)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(3, 2)], 0.0)
-        self.assertAlmostEquals(approx_distribution[(3, 3)], 0.042)
-        self.assertAlmostEquals(approx_distribution[(3, 4)], 0.054)
-        self.assertAlmostEquals(approx_distribution[(3, 5)], 0.054)
-        self.assertAlmostEquals(approx_distribution[(4, 0)], 0.036)
-        self.assertAlmostEquals(approx_distribution[(4, 1)], 0.036)
-        self.assertAlmostEquals(approx_distribution[(4, 2)], 0.028)
-        self.assertAlmostEquals(approx_distribution[(4, 3)], 0.028)
-        self.assertAlmostEquals(approx_distribution[(4, 4)], 0.036)
-        self.assertAlmostEquals(approx_distribution[(4, 5)], 0.036)
-        self.assertAlmostEquals(approx_distribution[(5, 0)], 0.036)
-        self.assertAlmostEquals(approx_distribution[(5, 1)], 0.036)
-        self.assertAlmostEquals(approx_distribution[(5, 2)], 0.028)
-        self.assertAlmostEquals(approx_distribution[(5, 3)], 0.028)
-        self.assertAlmostEquals(approx_distribution[(5, 4)], 0.036)
-        self.assertAlmostEquals(approx_distribution[(5, 5)], 0.036)
-
-    def cartesian(self, arrays, out=None):
-        arrays = [asarray(x) for x in arrays]
-        dtype = arrays[0].dtype
-
-        n = prod([x.size for x in arrays])
-        if out is None:
-            out = zeros([n, len(arrays)], dtype=dtype)
-
-        m = n / arrays[0].size
-        out[:, 0] = repeat(arrays[0], m)
-        if arrays[1:]:
-            self.cartesian(arrays[1:], out=out[0:m, 1:])
-            for j in xrange(1, arrays[0].size):
-                out[j * m:(j + 1) * m, 1:] = out[0:m, 1:]
-        return out
-
     def testOldMatrix(self):
-        f = open("resources/matrix-ebc-paper-dense.tsv", "r")
-        data = []
-        for line in f:
-            sl = line.split("\t")
-            if len(sl) < 5:  # headers
-                continue
-            data.append([sl[0], sl[2], float(sl[4])])
-        f.close()
+        with open("resources/matrix-ebc-paper-dense.tsv", "r") as f:
+            data = []
+            for line in f:
+                sl = line.split("\t")
+                if len(sl) < 5:  # headers
+                    continue
+                data.append([sl[0], sl[2], float(sl[4])])
 
         matrix = SparseMatrix([3514, 1232])
         matrix.read_data(data)
@@ -147,12 +77,11 @@ class TestEbc(unittest.TestCase):
         self.assertEquals(len(set(ebc.cXY[1])), 125)
 
     def testOldMatrix3d(self):
-        f = open("resources/matrix-ebc-paper-dense-3d.tsv", "r")
-        data = []
-        for line in f:
-            sl = line.split("\t")
-            data.append([sl[0], sl[1], sl[2], float(sl[3])])
-        f.close()
+        with open("resources/matrix-ebc-paper-dense-3d.tsv", "r") as f:
+            data = []
+            for line in f:
+                sl = line.split("\t")
+                data.append([sl[0], sl[1], sl[2], float(sl[3])])
 
         matrix = SparseMatrix([756, 996, 1232])
         matrix.read_data(data)
