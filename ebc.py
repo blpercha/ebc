@@ -34,11 +34,11 @@ class EBC:
         self.jitter_max = jitter_max
         self.objective_tolerance = objective_tolerance
 
-    def run(self, assigned_C=None):
+    def run(self, assigned_clusters=None):
         # Step 1: initialization steps
         self.pX = self.calculate_marginals(self.pXY)
-        if assigned_C:
-            self.cXY = assigned_C
+        if assigned_clusters:
+            self.cXY = assigned_clusters
         else:
             self.cXY = self.initialize_cluster_centers(self.pXY, self.K)
 

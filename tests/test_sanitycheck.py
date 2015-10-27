@@ -3,6 +3,8 @@ import numpy as np
 
 from matrix import SparseMatrix
 from ebc import EBC
+import ebc2d
+from ebc2d import EBC2D
 
 class TestSanityCheck(unittest.TestCase):
     """ Do a sanity check for the EBC code, using the data from the original ITCC paper. """
@@ -37,7 +39,7 @@ class TestSanityCheck(unittest.TestCase):
         print "iterations: ", it
 
         ebc = EBC(self.matrix, [3, 2], 10, 1e-10, 0.01)
-        ebc.run(assigned_C=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
+        ebc.run(assigned_clusters=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
         indices = [range(N_d) for N_d in ebc.pXY.N]
         index_list = self.cartesian(indices)
         approx_distribution = {}
@@ -88,3 +90,14 @@ class TestSanityCheck(unittest.TestCase):
         self.assertAlmostEquals(approx_distribution[(5, 4)], 0.036)
         self.assertAlmostEquals(approx_distribution[(5, 5)], 0.036)
 
+    def testEbc2dOnSparseMatrix(self):
+        with open("resources/matrix-itcc-paper-orig.tsv", "r") as f:
+            data = [l.split('\t') for l in f]
+        m = ebc2d.get_matrix_from_data(data)
+        # run without assigned clusters
+        ebc = EBC2D(m, [3, 2], 10, 1e-10, 0.01)
+        cXY, objective, it = ebc.run()
+
+        # run with assigned clusters
+        # ebc = EBC2D(m, [3, 2], 10, 1e-10, 0.01)
+        # ebc.run(assigned_clusters=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
