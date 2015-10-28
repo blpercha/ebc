@@ -1,15 +1,18 @@
 from collections import defaultdict
 import random
+import sys
 
 import numpy as np
+import scipy.sparse as sp
 from scipy.sparse import dok_matrix
+from scipy.sparse import csr_matrix
 
 class EBC2D:
     def __init__(self, matrix, n_clusters, max_iterations=10, jitter_max=1e-10, objective_tolerance=0.01):
         if not isinstance(matrix, dok_matrix):
             raise Exception("Matrix argument to EBC2D needs to be dok_matrix.")
 
-        np.testing.assert_approx_equal(matrix.sum(), 1.0, significant=7, err_msg= \
+        np.testing.assert_approx_equal(matrix.sum(), 1.0, significant=3, err_msg= \
             'Matrix elements does not sum to 1. Please normalize your matrix.')
 
         matrix = matrix.tocsr() # convert the matrix from dok_matrix to csc_matrix for speeding up
@@ -41,15 +44,71 @@ class EBC2D:
         else:
             self.cX, self.cY = self.initialize_cluster_centers(self.pXY, self.K)
 
-        # print self.cX
-        # print self.cY
         # Step 2: calculate cluster joint and marginal distributions
+        self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cX, self.cY, self.K, self.pXY)
+        self.qXhat, self.qYhat = self.calculate_marginals(self.qXhatYhat)
+        self.qX_xhat, self.qY_yhat = self.calculate_conditionals(self.cX, self.cY, self.pX, self.pY, self.qXhat, self.qYhat)
 
         # Step 3: iterate, recalculating distributions
+        last_objective = objective = 1e10
+        for it in range(self.max_iters):
+            # compute row/column clusters
+            for axis in range(2):
+                if axis == 0:
+                    self.cX = self.compute_row_clusters(self.pXY, self.qXhatYhat, self.qXhat, self.qY_yhat, self.cY)
+                else:
+                    self.cY = self.compute_col_clusters(self.pXY, self.qXhatYhat, self.qYhat, self.qX_xhat, self.cX)
+            # TODO: ensure the correct cluster number
+            self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cX, self.cY, self.K, self.pXY)
+            self.qXhat, self.qYhat = self.calculate_marginals(self.qXhatYhat)
+            self.qX_xhat, self.qY_yhat = self.calculate_conditionals(self.cX, self.cY, self.pX, self.pY, self.qXhat, self.qYhat)
 
-        objective = 0
-
+            objective = self.calculate_objective()
+            print "--> %d iterations finished, with objective value %f ..." % (it+1, objective)
+            if abs(objective - last_objective) < self.objective_tolerance:
+                return [self.cX, self.cY], objective, it + 1
+            last_objective = objective
         return [self.cX, self.cY], objective, self.max_iters
+
+    def compute_row_clusters(self, pXY, qXhatYhat, qXhat, qY_yhat, cY):
+        nrow, nc_row = pXY.shape[0], qXhat.shape[0]
+        dPQ = np.empty((nrow, nc_row))
+        # Step 1: generate q(y|x'): |x'| x |y|
+        # - first expand q(x'y') to |x'| x |y| using clustering information cY
+        expanded_qXhatYhat = np.nan_to_num((qXhatYhat.T / qXhat).T[:, cY])
+        qY_xhat = expanded_qXhatYhat * qY_yhat
+        # Step 2: loop through all clusters
+        for i in range(nc_row):
+            for j in range(nrow):
+                pXY_row = pXY[j, :].todense()
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    log_matrix = np.log(pXY_row / qY_xhat[i,:])
+                    log_matrix[log_matrix == -np.inf] = 0
+                    log_matrix = np.nan_to_num(log_matrix)
+                    dPQ[j,i] = pXY_row.dot(log_matrix.T)
+
+        dPQ += self.jitter_max * np.random.mtrand.random_sample(dPQ.shape)
+        C = dPQ.argmin(1)
+        self.ensure_correct_number_clusters(C, nc_row)
+        return C
+
+    def compute_col_clusters(self, pXY, qXhatYhat, qYhat, qX_xhat, cX):
+        ncol, nc_col = pXY.shape[1], qYhat.shape[0]
+        dPQ = np.empty((nc_col, ncol))
+        expanded_qXhatYhat = np.nan_to_num((qXhatYhat / qYhat)[cX, :])
+        qX_yhat = expanded_qXhatYhat.T * qX_xhat
+        for i in range(nc_col):
+            for j in range(ncol):
+                pXY_col = pXY[:, j].todense().T
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    log_matrix = np.log(pXY_col / qX_yhat[i,:])
+                    log_matrix[log_matrix == -np.inf] = 0
+                    log_matrix = np.nan_to_num(log_matrix)
+                    dPQ[i,j] = pXY_col.dot(log_matrix.T)
+        dPQ += self.jitter_max * np.random.mtrand.random_sample(dPQ.shape)
+        C = dPQ.argmin(0)
+        self.ensure_correct_number_clusters(C, nc_col)
+        return C
 
     def calculate_marginals(self, pXY):
         """ Calculate the marginal probabilities given a joint distribution.
@@ -59,9 +118,9 @@ class EBC2D:
         """
         pX = pXY.sum(1) # sum along the y dimension, note that the dimension index should be reverse
         pY = pXY.sum(0) # sum along the x dimension
-        return pX, pY
+        return np.squeeze(np.asarray(pX)), np.squeeze(np.asarray(pY)) # return a numpy array
 
-    def calcualate_conditionals(self, cX, cY, N, pX, pY, qXhat, qYhat):
+    def calculate_conditionals(self, cX, cY, pX, pY, qXhat, qYhat):
         """ Calculate the conditional marginal distributions given the clustering distribution, i.e. q(X|X').
 
         Args:
@@ -73,10 +132,36 @@ class EBC2D:
         Return:
             qX_xhat, qY_yhat: conditional marginal distributions for each axis.
         """
-        qX_xhat = pX / qXhat[cX] # qX_xhat is a N[0]-size vector here
-        qY_yhat = pY / qYhat[cY] # note that it could be problematic if cX is not a int vector
-        # TODO: check for divide-by-zero errors
-        return qX_xhat, qY_yhat
+        with np.errstate(divide='ignore', invalid='ignore'):
+            qX_xhat = pX / qXhat[cX] # qX_xhat is a N[0]-size vector here
+            qY_yhat = pY / qYhat[cY] # note that it could be problematic if cX is not a int vector
+            qX_xhat[qX_xhat == np.inf] = 0
+            qY_yhat[qY_yhat == np.inf] = 0
+        return qX_xhat, qY_yhat # want a Nx1 array-like matrix
+
+    def calculate_joint_cluster_distribution(self, cX, cY, K, pXY):
+        """ Calculate the joint cluster distribution q(X',Y') = p(X',Y') using the current prob distribution and
+        cluster assignments. (Here we use X' to denote X_hat)
+
+        Args:
+            cX, cY: current cluster assignments for each axis
+            K: numbers of clusters along each axis
+            pXY: original probability distribution matrix
+
+        Return:
+            qXhatYhat: the joint cluster distribution
+        """
+        nc_row, nc_col = K # num of clusters along row and col
+        qXhatYhat = np.zeros(K)
+        # itm_matrix = csr_matrix((nc_row, pXY.shape[1])) # nc_row * col sparse intermidiate matrix
+        itm_matrix = np.empty((nc_row, pXY.shape[1]))
+        # TODO: I should check whether csc matrix is faster than csr here
+        # TODO: check for better vectorization methods
+        for i in range(nc_row):
+            itm_matrix[i,:] = pXY[np.where(cX==i)[0], :].sum(0) # TODO: ValueError: zero-size array to reduction operation maximum which has no identity
+        for i in range(nc_col):
+            qXhatYhat[:,i] = itm_matrix[:, np.where(cY==i)[0]].sum(1).flatten()
+        return qXhatYhat
 
     def initialize_cluster_centers(self, pXY, K):
         """ Some magic code that initializes the cluster along each axis.
@@ -91,11 +176,12 @@ class EBC2D:
         # For x axis
         centers = pXY[random.sample(range(pXY.shape[0]), K[0]), :].toarray() # randomly select clustering centers
         cX = self.assign_clusters(pXY, centers, axis=0)
+        self.ensure_correct_number_clusters(cX, K[0])
         # For y axis
         centers = pXY[:, random.sample(range(pXY.shape[1]), K[1])].toarray() # randomly select clustering centers
         cY = self.assign_clusters(pXY, centers, axis=1)
-        # TODO: do I need to check to ensure the correct number of clusters?
-        return cX, cY
+        self.ensure_correct_number_clusters(cY, K[1])
+        return cX, cY # return a numpy array
 
     def assign_clusters(self, pXY, centers, axis):
         # TODO: fully vectorize the code
@@ -111,6 +197,31 @@ class EBC2D:
         scores += self.jitter_max * np.random.mtrand.random_sample(scores.shape)
         C = np.argmax(scores, 1)
         return C
+
+    def calculate_objective(self):
+        """ Calculate the KL-divergence between p(X,Y) and q(X,Y). 
+        Here q(x,y) can be written as p(x',y')*p(x|x')*p(y|y'). """
+        # Here I cannot vectorize the computation
+        objective = .0
+        x_indices, y_indices, values = sp.find(self.pXY)
+        # compute values for all useful elements in qXY
+        for i in range(len(x_indices)):
+            x_idx, y_idx, v = x_indices[i], y_indices[i], values[i]
+            c_x, c_y = self.cX[x_idx], self.cY[y_idx]
+            v_qXY = self.qX_xhat[x_idx] * self.qY_yhat[y_idx] * self.qXhatYhat[c_x, c_y]
+            objective += v * np.log(v / v_qXY)
+        return objective
+
+    def ensure_correct_number_clusters(self, C, expected_K):
+        clusters_unique = np.unique(C)
+        num_clusters = clusters_unique.shape[0]
+        if num_clusters == expected_K:
+            return
+        for c in range(expected_K):
+            if num_clusters < c + 1 or clusters_unique[c] != c: # no element assigned to c
+                idx = random.randint(0, C.shape[0] - 1)
+                C[idx] = c
+        self.ensure_correct_number_clusters(C, expected_K)
 
 def get_matrix_from_data(data):
     """ Read the data from a list and construct a scipy sparse dok_matrix. If 'data' is not a list, simply return. 
@@ -138,5 +249,4 @@ def get_matrix_from_data(data):
     # normalize the matrix
     m = m / m.sum()
     return m
-
 

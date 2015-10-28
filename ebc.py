@@ -1,6 +1,7 @@
 from collections import defaultdict
 from math import log
 import random
+import sys
 
 from numpy import zeros
 from numpy.ma import divide, outer, sqrt
@@ -8,7 +9,6 @@ from numpy.random.mtrand import random_sample
 from numpy.testing import assert_approx_equal
 
 from matrix import SparseMatrix
-
 
 class EBC:
     def __init__(self, matrix, n_clusters, max_iterations=10, jitter_max=1e-10, objective_tolerance=0.01):
@@ -61,8 +61,9 @@ class EBC:
                 self.qXhat = self.calculate_marginals(self.qXhatYhat)
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
             objective = self.calculate_objective()
+            print "--> %d iterations finished, with objective value %f ..." % (t+1, objective)
             if abs(objective - last_objective) < self.objective_tolerance:
-                return self.cXY, objective, t
+                return self.cXY, objective, t + 1
             last_objective = objective
         return self.cXY, objective, self.max_it  # hit max iterations - just return current assignments
 

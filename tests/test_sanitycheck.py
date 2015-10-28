@@ -35,6 +35,7 @@ class TestSanityCheck(unittest.TestCase):
     def testEbcOnSparseMatrix(self):
         ebc = EBC(self.matrix, [3, 2], 10, 1e-10, 0.01)
         cXY, objective, it = ebc.run()
+        print "--> ebc"
         print "objective: ", objective
         print "iterations: ", it
 
@@ -97,7 +98,60 @@ class TestSanityCheck(unittest.TestCase):
         # run without assigned clusters
         ebc = EBC2D(m, [3, 2], 10, 1e-10, 0.01)
         cXY, objective, it = ebc.run()
+        print "--> ebc2d"
+        print "objective: ", objective
+        print "iterations: ", it
 
         # run with assigned clusters
-        # ebc = EBC2D(m, [3, 2], 10, 1e-10, 0.01)
-        # ebc.run(assigned_clusters=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
+        ebc = EBC2D(m, [3, 2], 10, 1e-10, 0.01)
+        cXY, objective, it = ebc.run(assigned_clusters=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
+        indices = [range(N_d) for N_d in ebc.pXY.shape]
+        index_list = self.cartesian(indices)
+        approx_distribution = {}
+        qX_xhat = [ebc.qX_xhat, ebc.qY_yhat]
+        for location in index_list:
+            q = 1.0
+            c_location = []
+            for i in range(len(location)):
+                c_i = cXY[i][location[i]]
+                c_location.append(c_i)
+                q *= qX_xhat[i][location[i]]
+            q *= ebc.qXhatYhat[c_location[0], c_location[1]]
+            approx_distribution[tuple(location)] = q
+
+        self.assertAlmostEquals(approx_distribution[(0, 0)], 0.054)
+        self.assertAlmostEquals(approx_distribution[(0, 1)], 0.054)
+        self.assertAlmostEquals(approx_distribution[(0, 2)], 0.042)
+        self.assertAlmostEquals(approx_distribution[(0, 3)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(0, 4)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(0, 5)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(1, 0)], 0.054)
+        self.assertAlmostEquals(approx_distribution[(1, 1)], 0.054)
+        self.assertAlmostEquals(approx_distribution[(1, 2)], 0.042)
+        self.assertAlmostEquals(approx_distribution[(1, 3)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(1, 4)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(1, 5)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(2, 0)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(2, 1)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(2, 2)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(2, 3)], 0.042)
+        self.assertAlmostEquals(approx_distribution[(2, 4)], 0.054)
+        self.assertAlmostEquals(approx_distribution[(2, 5)], 0.054)
+        self.assertAlmostEquals(approx_distribution[(3, 0)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(3, 1)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(3, 2)], 0.0)
+        self.assertAlmostEquals(approx_distribution[(3, 3)], 0.042)
+        self.assertAlmostEquals(approx_distribution[(3, 4)], 0.054)
+        self.assertAlmostEquals(approx_distribution[(3, 5)], 0.054)
+        self.assertAlmostEquals(approx_distribution[(4, 0)], 0.036)
+        self.assertAlmostEquals(approx_distribution[(4, 1)], 0.036)
+        self.assertAlmostEquals(approx_distribution[(4, 2)], 0.028)
+        self.assertAlmostEquals(approx_distribution[(4, 3)], 0.028)
+        self.assertAlmostEquals(approx_distribution[(4, 4)], 0.036)
+        self.assertAlmostEquals(approx_distribution[(4, 5)], 0.036)
+        self.assertAlmostEquals(approx_distribution[(5, 0)], 0.036)
+        self.assertAlmostEquals(approx_distribution[(5, 1)], 0.036)
+        self.assertAlmostEquals(approx_distribution[(5, 2)], 0.028)
+        self.assertAlmostEquals(approx_distribution[(5, 3)], 0.028)
+        self.assertAlmostEquals(approx_distribution[(5, 4)], 0.036)
+        self.assertAlmostEquals(approx_distribution[(5, 5)], 0.036)

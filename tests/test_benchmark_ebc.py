@@ -3,7 +3,7 @@ import unittest
 from matrix import SparseMatrix
 from ebc import EBC
 
-class TestBenchmark(unittest.TestCase):
+class TestBenchmarkEBC(unittest.TestCase):
     """ Benchmark the EBC code as a unittest, using the sparse matrix data. """
     def setUp(self):
         with open("resources/matrix-ebc-paper-sparse.tsv", "r") as f:
