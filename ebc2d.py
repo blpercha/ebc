@@ -64,7 +64,6 @@ class EBC2D:
             self.qX_xhat, self.qY_yhat = self.calculate_conditionals(self.cX, self.cY, self.pX, self.pY, self.qXhat, self.qYhat)
 
             objective = self.calculate_objective()
-            print "--> %d iterations finished, with objective value %f ..." % (it+1, objective)
             if abs(objective - last_objective) < self.objective_tolerance:
                 return [self.cX, self.cY], objective, it + 1
             last_objective = objective

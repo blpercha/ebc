@@ -10,13 +10,15 @@ from numpy.testing import assert_approx_equal
 
 from matrix import SparseMatrix
 
+INFINITE = 1e10
+
 class EBC:
     def __init__(self, matrix, n_clusters, max_iterations=10, jitter_max=1e-10, objective_tolerance=0.01):
         if not isinstance(matrix, SparseMatrix):
             raise Exception("Matrix argument to EBC is not SparseMatrix.")
 
         # check to ensure matrix is a probability distribution
-        assert_approx_equal(matrix.get_sum(), 1.0, significant=7, err_msg='matrix elements does not sum to 1. Please normalize your matrix.')
+        assert_approx_equal(matrix.get_sum(), 1.0, significant=7, err_msg='Matrix elements does not sum to 1. Please normalize your matrix.')
 
         self.pXY = matrix  # the joint probability distribution e.g. p(X,Y)- the original sparse, multidimensional matrix
         self.cXY = [[0] * Ni for Ni in self.pXY.N]  # cluster assignments along each dimension e.g. C(X) and C(Y)
@@ -48,9 +50,9 @@ class EBC:
         self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
 
         # Step 3: iterate through dimensions, recalculating distributions
-        last_objective = objective = 1e10
-        K_order = [d for d in range(self.dim)]
-        for t in range(self.max_it):
+        last_objective = objective = INFINITE
+        K_order = [d for d in xrange(self.dim)]
+        for t in xrange(self.max_it):
             # K_order.reverse()  # TODO: remove this
             #random.shuffle(K_order)
 
@@ -61,7 +63,7 @@ class EBC:
                 self.qXhat = self.calculate_marginals(self.qXhatYhat)
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
             objective = self.calculate_objective()
-            print "--> %d iterations finished, with objective value %f ..." % (t+1, objective)
+            print "--> Iteration %d: objective value = %f" % (t+1, objective)
             if abs(objective - last_objective) < self.objective_tolerance:
                 return self.cXY, objective, t + 1
             last_objective = objective
@@ -71,7 +73,7 @@ class EBC:
         """ Compute the best cluster assignment along a single axis, given all the distributions and clusters on other axes.
 
         Args:
-            pXY: the original data matrix
+            pXY: the original probability distribution matrix
             qXhatYhat: the joint distribution over the clusters
             qXhat: the marginal distributions of qXhatYhat
             qXxhat: for each dimension, the conditional distributions over the clusters (in a single vector)
@@ -86,25 +88,25 @@ class EBC:
         # want argmin_xhat D(p(Y,Z|x) || q(Y,Z|xhat))
         # D(P|Q) = \sum_i P_i log (P_i / Q_i)
         dPQ = zeros(shape=(pXY.N[axis], qXhatYhat.N[axis]))
-        for coords in pXY.nonzero_elements:
-            coordinate_this_axis = coords[axis]
-            current_cluster_assignments = [cXY[i][coords[i]] for i in range(len(coords))] # cluster assignments on each axis
-            P_i = pXY.nonzero_elements[coords]
-            for xhat in range(qXhatYhat.N[axis]):
+        for coords, P_i in pXY.nonzero_elements.items():
+            coords_this_axis = coords[axis]
+            P_i = P_i / self.pX[axis][coords_this_axis]
+            current_cluster_assignments = [cXY[i][coords[i]] for i in xrange(self.dim)] # cluster assignments on each axis
+            for xhat in xrange(self.K[axis]):
                 current_cluster_assignments[axis] = xhat  # temporarily assign dth dimension to this xhat
+                qXhatYhat_current = qXhatYhat.get(tuple(current_cluster_assignments))
                 Q_i = 1.0
-                for i in range(len(current_cluster_assignments)):
-                    if i == axis:
-                        continue
-                    Q_i *= qXxhat[i][coords[i]]
-                if qXhatYhat.get(tuple(current_cluster_assignments)) == 0 and qXhat[axis][xhat] == 0:
+                if qXhatYhat_current == 0 and qXhat[axis][xhat] == 0:
                     Q_i = 0
                 else:
-                    Q_i *= qXhatYhat.get(tuple(current_cluster_assignments)) / qXhat[axis][xhat]
+                    Q_i *= qXhatYhat_current / qXhat[axis][xhat]
+                    for i in xrange(self.dim):
+                        if i == axis: continue
+                        Q_i *= qXxhat[i][coords[i]]
                 if Q_i == 0:  # this can definitely happen if cluster joint distribution has zero element
-                    dPQ[coordinate_this_axis, xhat] = 1e10
+                    dPQ[coords_this_axis, xhat] = INFINITE
                 else:
-                    dPQ[coordinate_this_axis, xhat] += P_i * log(P_i / Q_i)
+                    dPQ[coords_this_axis, xhat] += P_i * log(P_i / Q_i)
 
         # add random jitter to break ties
         dPQ += self.jitter_max * random_sample(dPQ.shape)
@@ -122,7 +124,7 @@ class EBC:
             raise Exception("Illegal argument to marginal calculation: " + str(pXY))
         marginals = [[0] * Ni for Ni in pXY.N]
         for d in pXY.nonzero_elements:
-            for i in range(len(d)):
+            for i in xrange(len(d)):
                 marginals[i][d[i]] += pXY.nonzero_elements[d]
         return marginals
 
@@ -144,7 +146,7 @@ class EBC:
         for coords in pXY.nonzero_elements:
             # find the coordinates of the cluster for this element
             cluster_coords = []
-            for i in range(len(coords)):
+            for i in xrange(len(coords)):
                 cluster_coords.append(cXY[i][coords[i]])
             qXhatYhat.add_value(tuple(cluster_coords), pXY.nonzero_elements[coords])
         return qXhatYhat
@@ -163,9 +165,9 @@ class EBC:
             with each element being a list of prob for i-th row/column in this axis.
         """
         conditional_distributions = [[0] * Ni for Ni in N] # TODO: why use a list of list to represent matrix here?
-        for i in range(len(cXY)):
+        for i in xrange(len(cXY)):
             cluster_assignments_this_dimension = cXY[i]
-            for j in range(len(cluster_assignments_this_dimension)):
+            for j in xrange(len(cluster_assignments_this_dimension)):
                 cluster = cluster_assignments_this_dimension[j]
                 if pX[i][j] == 0 and qXhat[i][cluster] == 0:
                     conditional_distributions[i][j] = 0
@@ -187,19 +189,19 @@ class EBC:
             raise Exception("Matrix argument to initialize_cluster_centers is not sparse.")
         new_C = [[-1] * Ni for Ni in pXY.N]
 
-        for axis in range(len(K)): # loop over each dimension
+        for axis in xrange(len(K)): # loop over each dimension
             # choose cluster centers
             axis_length = pXY.N[axis]
-            center_indices = random.sample(range(axis_length), K[axis])
+            center_indices = random.sample(xrange(axis_length), K[axis])
             cluster_ids = {}
-            for i in range(K[axis]):  # assign identifiers to clusters
+            for i in xrange(K[axis]):  # assign identifiers to clusters
                 center_index = center_indices[i]
                 cluster_ids[center_index] = i
             centers = defaultdict(lambda: defaultdict(float))  # all nonzero indices for each center
             for coords in pXY.nonzero_elements:
                 index_on_axis = coords[axis]
                 if index_on_axis in cluster_ids: # is a center
-                    reduced_coords = tuple([coords[i] for i in range(len(coords)) if i != axis]) # coords without the current axis
+                    reduced_coords = tuple([coords[i] for i in xrange(len(coords)) if i != axis]) # coords without the current axis
                     centers[cluster_ids[index_on_axis]][reduced_coords] = pXY.nonzero_elements[coords] # (cluster_id, other coords) -> value
 
             # assign rows to clusters
@@ -210,7 +212,7 @@ class EBC:
                 index_on_axis = coords[axis]
                 if index_on_axis in center_indices:
                     continue  # don't reassign cluster centers, please
-                reduced_coords = tuple([coords[i] for i in range(len(coords)) if i != axis])
+                reduced_coords = tuple([coords[i] for i in xrange(len(coords)) if i != axis])
                 for cluster_index in cluster_ids:
                     xhat = cluster_ids[cluster_index]  # need cluster ID, not the axis index
                     if reduced_coords in centers[xhat]:  # overlapping point
@@ -244,7 +246,7 @@ class EBC:
             clusters_represented.add(c)
         if len(clusters_represented) == expected_K:
             return
-        for c in range(expected_K):
+        for c in xrange(expected_K):
             if c not in clusters_represented:
                 index_to_change = random.randint(0, len(cXYi) - 1)
                 cXYi[index_to_change] = c
@@ -262,9 +264,9 @@ class EBC:
         return objective
 
     def get_element_approximate_distribution(self, coords):
-        clusters = [self.cXY[i][coords[i]] for i in range(len(coords))]
+        clusters = [self.cXY[i][coords[i]] for i in xrange(len(coords))]
         element = self.qXhatYhat.get(tuple(clusters))
-        for i in range(len(coords)):
+        for i in xrange(len(coords)):
             element *= self.qXxHat[i][coords[i]]
         return element
 
