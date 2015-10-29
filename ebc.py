@@ -27,7 +27,7 @@ class EBC:
             raise Exception("Matrix argument to EBC is not instance of SparseMatrix.")
 
         # check to ensure matrix is a probability distribution
-        np.testing.assert_approx_equal(matrix.get_sum(), 1.0, significant=7, err_msg='Matrix elements does not sum to 1. Please normalize your matrix.')
+        np.testing.assert_approx_equal(matrix.sum(), 1.0, significant=7, err_msg='Matrix elements does not sum to 1. Please normalize your matrix.')
 
         self.pXY = matrix  # the joint probability distribution e.g. p(X,Y)- the original sparse, multidimensional matrix
         self.K = n_clusters  # numbers of clusters along each dimension (len(K) = dim)
@@ -44,7 +44,7 @@ class EBC:
         self.jitter_max = jitter_max # amount to add to cluster assignment scores to break ties
         self.objective_tolerance = objective_tolerance # the threshold for us to stop
 
-    def run(self, assigned_clusters=None):
+    def run(self, assigned_clusters=None, verbose=True):
         """ To run the ebc algorithm.
 
         Args:
@@ -55,11 +55,14 @@ class EBC:
             objective: the final objective value
             max_it: the number of iterations that the algorithm has run
         """
+        if verbose: print "Running EBC on a %d-d sparse matrix with size %s ..." % (self.dim, str(self.pXY.N))
         # Step 1: initialization steps
         self.pX = self.calculate_marginals(self.pXY)
         if assigned_clusters:
+            if verbose: print "Using specified clusters, with cluster number on each axis: %s ..." % self.K
             self.cXY = assigned_clusters
         else:
+            if verbose: print "Randomly initializing clusters, with cluster number on each axis: %s ..." % self.K
             self.cXY = self.initialize_cluster_centers(self.pXY, self.K)
 
         # Step 2: calculate cluster joint and marginal distributions
@@ -70,15 +73,18 @@ class EBC:
         # Step 3: iterate through dimensions, recalculating distributions
         last_objective = objective = INFINITE
         for t in xrange(self.max_it):
+            if verbose: sys.stdout.write("--> Running iteration %d " % (t+1)); sys.stdout.flush()
             for axis in xrange(self.dim):
                 self.cXY[axis] = self.compute_clusters(self.pXY, self.qXhatYhat, self.qXhat, self.qXxHat, self.cXY, axis)
                 self.ensure_correct_number_clusters(self.cXY[axis], self.K[axis])  # check to ensure correct K
                 self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
                 self.qXhat = self.calculate_marginals(self.qXhatYhat)
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
+                sys.stdout.write("."); sys.stdout.flush()
             objective = self.calculate_objective()
-            print "--> Iteration %d: objective value = %f" % (t+1, objective)
+            if verbose: sys.stdout.write(" objective value = %f\n" % (objective))
             if abs(objective - last_objective) < self.objective_tolerance:
+                if verbose: print "EBC finished in %d iterations, with final objective value %.4f" % (t+1, objective)
                 return self.cXY, objective, t + 1
             last_objective = objective
         return self.cXY, objective, self.max_it  # hit max iterations - just return current assignments
@@ -301,7 +307,7 @@ class EBC:
         return element
 
 def main():
-    """ The code for profiling EBC with cProfile. """
+    """ An example run of EBC. """
     with open("resources/matrix-ebc-paper-sparse.tsv", "r") as f:
         data = []
         for line in f:
@@ -313,12 +319,8 @@ def main():
     matrix = SparseMatrix([14052, 7272])
     matrix.read_data(data)
     matrix.normalize()
-    print "-> Data preprocessing finished."
     ebc = EBC(matrix, [30, 125], 10, 1e-10, 0.01)
     cXY, objective, it = ebc.run()
-    print "-> EBC finished."
-    print "---> objective: ", objective
-    print "---> iterations: ", it
 
 if __name__ == "__main__":
     main()
