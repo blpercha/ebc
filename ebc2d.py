@@ -190,9 +190,8 @@ class EBC2D:
         qXhatYhat = np.zeros(K)
         # itm_matrix = csr_matrix((nc_row, pXY.shape[1])) # nc_row * col sparse intermidiate matrix
         itm_matrix = np.empty((nc_row, pXY.shape[1]))
-        # TODO: check for better vectorization methods
         for i in range(nc_row):
-            itm_matrix[i,:] = pXY[np.where(cX==i)[0], :].sum(0) # TODO: ValueError: zero-size array to reduction operation maximum which has no identity
+            itm_matrix[i,:] = pXY[np.where(cX==i)[0], :].sum(0)
         for i in range(nc_col):
             qXhatYhat[:,i] = itm_matrix[:, np.where(cY==i)[0]].sum(1).flatten()
         return qXhatYhat

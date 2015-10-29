@@ -3,4 +3,4 @@ temp/
 __pycache__/
 *.pyc
 *.out
-exp_*.py
+*.sh
