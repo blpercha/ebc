@@ -2,9 +2,6 @@ from collections import defaultdict
 import random, sys
 
 import numpy as np
-import scipy.sparse as sp
-from scipy.sparse import dok_matrix
-from scipy.sparse import csr_matrix
 
 class EBC2D:
     def __init__(self, matrix, n_clusters, max_iterations=10, jitter_max=1e-10, objective_tolerance=0.01):
