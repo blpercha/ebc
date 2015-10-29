@@ -11,7 +11,7 @@ INFINITE = 1e10
 
 class EBC:
     def __init__(self, matrix, n_clusters, max_iterations=10, jitter_max=1e-10, objective_tolerance=0.01):
-        """ To initialize a EBC object.
+        """ To initialize an EBC object.
 
         Args:
             matrix: a instance of SparseMatrix that represents the original distribution
@@ -87,6 +87,7 @@ class EBC:
                 if verbose: print "EBC finished in %d iterations, with final objective value %.4f" % (t+1, objective)
                 return self.cXY, objective, t + 1
             last_objective = objective
+        if verbose: print "EBC finished in %d iterations, with final objective value %.4f" % (self.max_it, objective)
         return self.cXY, objective, self.max_it  # hit max iterations - just return current assignments
 
     def compute_clusters(self, pXY, qXhatYhat, qXhat, qXxhat, cXY, axis):
