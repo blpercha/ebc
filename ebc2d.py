@@ -1,6 +1,5 @@
 from collections import defaultdict
-import random
-import sys
+import random, sys
 
 import numpy as np
 import scipy.sparse as sp
@@ -9,13 +8,13 @@ from scipy.sparse import csr_matrix
 
 class EBC2D:
     def __init__(self, matrix, n_clusters, max_iterations=10, jitter_max=1e-10, objective_tolerance=0.01):
-        if not isinstance(matrix, dok_matrix):
-            raise Exception("Matrix argument to EBC2D needs to be dok_matrix.")
+        if not isinstance(matrix, np.ndarray):
+            raise Exception("Matrix argument to EBC2D needs to be a numpy ndarray.")
 
         np.testing.assert_approx_equal(matrix.sum(), 1.0, significant=3, err_msg= \
             'Matrix elements does not sum to 1. Please normalize your matrix.')
 
-        matrix = matrix.tocsr() # convert the matrix from dok_matrix to csc_matrix for speeding up
+        # matrix = matrix.tocsr() # convert the matrix from dok_matrix to csc_matrix for speeding up
         self.pXY = matrix # p(X,Y)
         self.N = self.pXY.shape
         self.cX = np.zeros(self.N[0], dtype=np.int) # cluster assignment along X axis, C(X)
@@ -26,7 +25,7 @@ class EBC2D:
         self.pX = np.empty(self.N[0]) # marginal probabilities, p(X)
         self.pY = np.empty(self.N[1]) # marginal probabilities, p(Y)
 
-        self.qXhatYhat = dok_matrix(tuple(self.K), dtype=np.float32) # the approx probability distribution after clustering
+        self.qXhatYhat = np.zeros(tuple(self.K), dtype=np.float32) # the approx probability distribution after clustering
         self.qXhat = np.zeros(self.K[0]) # q(X')
         self.qYhat = np.zeros(self.K[1]) # q(Y')
         self.qX_xhat = np.zeros(self.N[0]) # q(X|X')
@@ -35,7 +34,7 @@ class EBC2D:
         self.jitter_max = jitter_max
         self.objective_tolerance = objective_tolerance
 
-    def run(self, assigned_clusters=None):
+    def run(self, assigned_clusters=None, verbose=True):
         # Step 1: initialization steps
         self.pX, self.pY = self.calculate_marginals(self.pXY)
         if assigned_clusters and len(assigned_clusters) == 2:
@@ -58,12 +57,12 @@ class EBC2D:
                     self.cX = self.compute_row_clusters(self.pXY, self.qXhatYhat, self.qXhat, self.qY_yhat, self.cY)
                 else:
                     self.cY = self.compute_col_clusters(self.pXY, self.qXhatYhat, self.qYhat, self.qX_xhat, self.cX)
-            # TODO: ensure the correct cluster number
             self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cX, self.cY, self.K, self.pXY)
             self.qXhat, self.qYhat = self.calculate_marginals(self.qXhatYhat)
             self.qX_xhat, self.qY_yhat = self.calculate_conditionals(self.cX, self.cY, self.pX, self.pY, self.qXhat, self.qYhat)
 
             objective = self.calculate_objective()
+            print "--> Iteration %d: objective value = %.3f" % (it+1, objective)
             if abs(objective - last_objective) < self.objective_tolerance:
                 return [self.cX, self.cY], objective, it + 1
             last_objective = objective
@@ -79,7 +78,7 @@ class EBC2D:
         # Step 2: loop through all clusters
         for i in range(nc_row):
             for j in range(nrow):
-                pXY_row = pXY[j, :].todense()
+                pXY_row = pXY[j, :]
                 with np.errstate(divide='ignore', invalid='ignore'):
                     log_matrix = np.log(pXY_row / qY_xhat[i,:])
                     log_matrix[log_matrix == -np.inf] = 0
@@ -98,7 +97,7 @@ class EBC2D:
         qX_yhat = expanded_qXhatYhat.T * qX_xhat
         for i in range(nc_col):
             for j in range(ncol):
-                pXY_col = pXY[:, j].todense().T
+                pXY_col = pXY[:, j].T
                 with np.errstate(divide='ignore', invalid='ignore'):
                     log_matrix = np.log(pXY_col / qX_yhat[i,:])
                     log_matrix[log_matrix == -np.inf] = 0
@@ -173,26 +172,25 @@ class EBC2D:
             cX, cY: a list of cluster id that the current index in the current axis is assigned to.
         """
         # For x axis
-        centers = pXY[random.sample(range(pXY.shape[0]), K[0]), :].toarray() # randomly select clustering centers
+        centers = pXY[random.sample(range(pXY.shape[0]), K[0]), :] # randomly select clustering centers
         cX = self.assign_clusters(pXY, centers, axis=0)
         self.ensure_correct_number_clusters(cX, K[0])
         # For y axis
-        centers = pXY[:, random.sample(range(pXY.shape[1]), K[1])].toarray() # randomly select clustering centers
+        centers = pXY[:, random.sample(range(pXY.shape[1]), K[1])] # randomly select clustering centers
         cY = self.assign_clusters(pXY, centers, axis=1)
         self.ensure_correct_number_clusters(cY, K[1])
         return cX, cY # return a numpy array
 
     def assign_clusters(self, pXY, centers, axis):
         # TODO: fully vectorize the code
-        scores = np.zeros(shape=(pXY.shape[axis], centers.shape[axis]))
-        for i in range(pXY.shape[axis]):
-            row = pXY[i, :].toarray() if axis == 0 else pXY[:, i].toarray() # here I need to force row to be np array to perform the deduction
-            score_i = row * centers
-            # TODO: any way to automatically broadcast a sparse csr matrix?
-            score_i = score_i.sum(1) if axis == 0 else score_i.sum(0) # calculate u.v
-            centers_length = np.power(centers, 2).sum(1) if axis == 0 else np.power(centers, 2).sum(0) # get |v|
-            score_i /= centers_length # get u.v / |v|
-            scores[i,:] = score_i.flatten()
+        cluster_num = centers.shape[axis]
+        scores = np.zeros(shape=(pXY.shape[axis], cluster_num))
+        for i in range(cluster_num):
+            center = centers[i, :] if axis == 0 else centers[:, i]
+            center_length = np.linalg.norm(center) # get |v|
+            score_i = pXY * center
+            score_i = score_i.sum(1) / center_length if axis == 0 else score_i.sum(0) / center_length # calculate u.v/|v|
+            scores[:, i] = score_i.flatten()
         scores += self.jitter_max * np.random.mtrand.random_sample(scores.shape)
         C = np.argmax(scores, 1)
         return C
@@ -202,10 +200,11 @@ class EBC2D:
         Here q(x,y) can be written as p(x',y')*p(x|x')*p(y|y'). """
         # Here I cannot vectorize the computation
         objective = .0
-        x_indices, y_indices, values = sp.find(self.pXY)
+        x_indices, y_indices = np.nonzero(self.pXY)
         # compute values for all useful elements in qXY
         for i in range(len(x_indices)):
-            x_idx, y_idx, v = x_indices[i], y_indices[i], values[i]
+            x_idx, y_idx = x_indices[i], y_indices[i]
+            v = self.pXY[x_idx, y_idx]
             c_x, c_y = self.cX[x_idx], self.cY[y_idx]
             v_qXY = self.qX_xhat[x_idx] * self.qY_yhat[y_idx] * self.qXhatYhat[c_x, c_y]
             objective += v * np.log(v / v_qXY)
@@ -238,7 +237,7 @@ def get_matrix_from_data(data):
             location.append(feature_ids[i][f_i])
     nrow = len(feature_ids[0])
     ncol = len(feature_ids[1])
-    m = dok_matrix((nrow, ncol), dtype=np.float32)
+    m = np.zeros((nrow, ncol), dtype=np.float32)
     for d in data:
         r = feature_ids[0][d[0]]
         c = feature_ids[1][d[1]]

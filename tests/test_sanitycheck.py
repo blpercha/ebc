@@ -34,13 +34,13 @@ class TestSanityCheck(unittest.TestCase):
 
     def testEbcOnSparseMatrix(self):
         ebc = EBC(self.matrix, [3, 2], 10, 1e-10, 0.01)
-        cXY, objective, it = ebc.run()
+        cXY, objective, it = ebc.run(verbose=False)
         print "--> ebc"
         print "objective: ", objective
         print "iterations: ", it
 
         ebc = EBC(self.matrix, [3, 2], 10, 1e-10, 0.01)
-        ebc.run(assigned_clusters=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
+        ebc.run(assigned_clusters=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]], verbose=False)
         indices = [range(N_d) for N_d in ebc.pXY.N]
         index_list = self.cartesian(indices)
         approx_distribution = {}
@@ -97,14 +97,14 @@ class TestSanityCheck(unittest.TestCase):
         m = ebc2d.get_matrix_from_data(data)
         # run without assigned clusters
         ebc = EBC2D(m, [3, 2], 10, 1e-10, 0.01)
-        cXY, objective, it = ebc.run()
+        cXY, objective, it = ebc.run(verbose=False)
         print "--> ebc2d"
         print "objective: ", objective
         print "iterations: ", it
 
         # run with assigned clusters
         ebc = EBC2D(m, [3, 2], 10, 1e-10, 0.01)
-        cXY, objective, it = ebc.run(assigned_clusters=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]])
+        cXY, objective, it = ebc.run(assigned_clusters=[[2, 0, 1, 1, 2, 2], [0, 0, 1, 0, 1, 1]], verbose=False)
         indices = [range(N_d) for N_d in ebc.pXY.shape]
         index_list = self.cartesian(indices)
         approx_distribution = {}

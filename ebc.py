@@ -80,7 +80,7 @@ class EBC:
                 self.qXhatYhat = self.calculate_joint_cluster_distribution(self.cXY, self.K, self.pXY)
                 self.qXhat = self.calculate_marginals(self.qXhatYhat)
                 self.qXxHat = self.calculate_conditionals(self.cXY, self.pXY.N, self.pX, self.qXhat)
-                sys.stdout.write("."); sys.stdout.flush()
+                if verbose: sys.stdout.write("."); sys.stdout.flush()
             objective = self.calculate_objective()
             if verbose: sys.stdout.write(" objective value = %f\n" % (objective))
             if abs(objective - last_objective) < self.objective_tolerance:
@@ -186,7 +186,7 @@ class EBC:
         Return:
             conditional_distributions: a list of distribution for each axis, with each element being a list of prob for i-th row/column in this axis.
         """
-        conditional_distributions = [[0] * Ni for Ni in N] # TODO: why use a list of list to represent matrix here?
+        conditional_distributions = [[0] * Ni for Ni in N]
         for i in xrange(len(cXY)):
             cluster_assignments_this_dimension = cXY[i]
             for j in xrange(len(cluster_assignments_this_dimension)):
