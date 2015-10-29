@@ -75,6 +75,6 @@ class SparseMatrix:
             self_shuffled.add_value(tuple([indices[i][j] for i in range(self.dim)]), values[j])
         return self_shuffled
 
-    def to_string(self):
+    def __str__(self):
         value_list = sorted(self.nonzero_elements.items(), key=itemgetter(0), reverse=False)
         return "\n".join(["\t".join([str(e) for e in v[0]]) + "\t" + str(v[1]) for v in value_list])
