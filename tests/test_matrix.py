@@ -5,7 +5,7 @@ from matrix import SparseMatrix
 
 class TestMatrix(unittest.TestCase):
     def setUp(self):
-        self.data = [l.split('\t') for l in open('sample-matrix-file.txt', 'r').readlines()]
+        self.data = [l.split('\t') for l in open('tests/sample-matrix-file.txt', 'r').readlines()]
         self.matrix = SparseMatrix([2, 4, 9])
         self.matrix.read_data(self.data)
 
