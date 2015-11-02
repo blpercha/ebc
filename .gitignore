@@ -1,4 +1,7 @@
 .idea/
+temp/
 __pycache__/
 *.pyc
 .DS_Store
+*.out
+*.sh
