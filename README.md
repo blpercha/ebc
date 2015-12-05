@@ -8,7 +8,7 @@ A python implementation of the Ensemble Biclustering for Classification (EBC) al
 - `ebc.py`: an implementation of EBC algorithm using sparse matrix.
 - `ebc2d.py`: a vectorized implementation of EBC algorithm using (2D) numpy dense array.
 - `matrix.py`: a N-dimensional sparse matrix implementation using python dict that allows basic get/set/sum operations.
-- `resources/`: this directory contains many example data that could be used to run EBC on.
+- `ebc-sample-matrices/`: this directory contains many example data that could be used to run EBC on.
 
 ##Usage
 
