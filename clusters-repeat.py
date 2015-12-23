@@ -36,7 +36,7 @@ def main():
     entity_map = defaultdict(tuple)
     for d in raw_data:
         entity = tuple([d[i] for i in entity_cols])
-        entity_ids = tuple([M.feature_ids[i][d[i]] for i in entity_cols])
+        entity_ids = tuple([M.feature_ids[ebc_cols.index(i)][d[i]] for i in entity_cols])
         entity_map[entity_ids] = entity
 
     # figure out which ebc columns the entity columns correspond to
