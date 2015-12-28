@@ -9,6 +9,8 @@ from matrix import SparseMatrix
 def compareRandom(num_trials, tensor_dimensions, matrix_data, cluster_dimensions,
                   maxit_ebc, jitter_max_ebc, objective_tolerance):
     deltas = []
+    objectives_M = []
+    objectives_Mr = []
     iterations_M = []
     iterations_Mr = []
     noconverge_M = 0
@@ -38,8 +40,10 @@ def compareRandom(num_trials, tensor_dimensions, matrix_data, cluster_dimensions
         else:
             iterations_Mr.append(it_Mr)
 
+        objectives_M.append(objective_M)
+        objectives_Mr.append(objective_Mr)
         deltas.append(objective_M - objective_Mr)
-    return deltas, iterations_M, iterations_Mr, noconverge_M, noconverge_Mr
+    return deltas, objectives_M, objectives_Mr, iterations_M, iterations_Mr, noconverge_M, noconverge_Mr
 
 
 def main():
@@ -63,15 +67,18 @@ def main():
         N.append(len(set([d[dim] for d in data])))
     print(N)
 
-    D_1, it_orig, it_rand, noconv_orig, noconv_rand = compareRandom(num_trials=N_trials,
-                                                                    tensor_dimensions=N, matrix_data=data,
-                                                                    cluster_dimensions=K, maxit_ebc=max_iterations_ebc,
-                                                                    jitter_max_ebc=jitter_max,
-                                                                    objective_tolerance=object_tol)
+    D_1, obj_orig, obj_rand, it_orig, it_rand, noconv_orig, noconv_rand = compareRandom(num_trials=N_trials,
+                                                                                        tensor_dimensions=N,
+                                                                                        matrix_data=data,
+                                                                                        cluster_dimensions=K,
+                                                                                        maxit_ebc=max_iterations_ebc,
+                                                                                        jitter_max_ebc=jitter_max,
+                                                                                        objective_tolerance=object_tol)
 
     # write final result to combined file (other processes also write to this file)
     output_stream = open(output_file, "a")
     output_stream.write("\t".join([str(e) for e in K]) + "\t" + str(mean(D_1)) + "\t" + str(std(D_1)) +
+                        "\t" + str(mean(obj_orig)) + "\t" + str(mean(obj_rand)) +
                         "\t" + str(mean(it_orig)) + "\t" + str(mean(it_rand)) +
                         "\t" + str(noconv_orig) + "\t" + str(noconv_rand) + "\n")
     output_stream.flush()
